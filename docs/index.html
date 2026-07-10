@@ -58,10 +58,13 @@
   .btn:focus-visible,input:focus-visible,.chip:focus-visible,.ghost:focus-visible{outline:2px solid var(--grn);outline-offset:2px}
   .hint{font-size:13px;color:var(--ink3);margin:12px 0 0}
   .hint b{color:var(--ink2);font-weight:600}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
-  .chip{background:transparent;border:1px solid var(--line2);color:var(--ink2);border-radius:99px;
-    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;padding:6px 12px}
-  .chip:hover{border-color:var(--mnde);color:var(--mnde)}
+  .demo-row{margin-top:12px}
+  #demo-select{background:var(--bg);border:1px solid var(--line2);color:var(--ink2);border-radius:6px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;padding:10px 12px;
+    max-width:100%;min-width:280px;cursor:pointer}
+  #demo-select:hover,#demo-select:focus{border-color:var(--mnde);color:var(--ink);outline:none}
+  #demo-select optgroup{color:var(--ink3);font-style:normal}
+  #demo-select option{color:var(--ink)}
   .sync{display:none;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;color:var(--grn);margin-top:14px}
   .err{display:none;font-size:13px;color:#FF7A7A;margin-top:12px}
 
@@ -211,7 +214,11 @@
       <button class="btn" id="check">Check&nbsp;→</button>
     </div>
     <p class="hint" id="addr-hint"><b>No connect. No signature.</b> Read-only lookup of your on-chain history across 1,000 epochs.</p>
-    <div class="chips" id="chips" aria-label="Demo wallets"></div>
+    <div class="demo-row">
+      <select id="demo-select" aria-label="Example wallets">
+        <option value="">🔎 Browse example wallets…</option>
+      </select>
+    </div>
     <p class="sync mono" id="sync" role="status">SYNCING…</p>
     <p class="err" id="err"></p>
   </div>
@@ -330,23 +337,47 @@ const fmt=(n,d=2)=>n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFrac
 const $=id=>document.getElementById(id);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* Demo chips: live wallets hit the real API; sim chips use the seeded mock. */
-const DEMOS=[
-  {label:'🎲 simulated demo', addr:'DemoWha1eStakedEar1yAndFu11yVar18XXXXXXXXXXX', sim:true},
-  {label:'⚡ og whale', addr:'5TdTFGzKKmjQ1XEenkjwg8mEB4D9g3hwtXHDxoVtNLYU', sim:false},
-  {label:'⚡ native staker', addr:'8D3WfeL6VP4oG9FmtJEg2YVmoP1TdogemswzquiVCjFL', sim:false},
-  {label:'⚡ veteran staker', addr:'9QXqs2v22VmTGMdNPXEEBPp3e6NwM9enGAmNhV3LDUZ1', sim:false},
-  {label:'⚡ mSOL holder', addr:'2YWVuVfTB6tWVNeHLys6tPVKh2TkafKFqTxX7BMYwBHJ', sim:false},
-  {label:'⚡ sleepy holder', addr:'GncNANUhbPoD82FWUws9K3CgkNkzhAHcQJCNW7VVKkd7', sim:false},
+/* Example wallets: real addresses (⚡) run the live pipeline; simulated entries (🎲)
+   use the seeded mock with explicit parameter overrides per category. */
+const EXAMPLES=[];
+const EXAMPLE_SETS=[
+  {group:'OG holders (3+ years on chain)',items:[
+    {label:'whale · staked throughout since ep. 300',addr:'26H113i8gqHyHPAYYdekSu22sBmVtcJEDtyEWvFdvyZb',sim:false},
+    {label:'all-in staker since ep. 189 · zero idle',addr:'4szQKXwPAnfPhEDWmmkLwMu5S6tWV5pFmeqnjdDy3R1d',sim:false},
+    {label:'ladder staker · 11 accounts since ep. 227',addr:'FwjFzHHRZuVsnuMsU4DvBEu1msZ7aQGV8eWRsqYj13dP',sim:false},
+    {label:'small retail · set-and-forget since ep. 300',addr:'GWfW1yM4E2NJi1WNievSDVe4bQFJ6YSteX6vAFrozABf',sim:false},
+    {label:'partial staker · big idle stack',addr:'HNBCurE7Z9npYjtWuvehBo7E1zN13swxjEVsmye1XFDe',sim:false},
+    {label:'mostly idle · 5× more SOL than stake',addr:'29kW4pNvnEBFSVoLAGEthip9rfLKpNyAE3BAHV6eNJ8Y',sim:false},
+    {label:'never staked · holding since 2022',addr:'BP1epAhFXxXEqo47GkFTdf9UuRUU2spKnuRxhWrAFED2',sim:false},
+    {label:'never staked · holding since 2022 (#2)',addr:'Cu4M3yd2LfMoGhmYxKszhVH18SPgt6TQvqnE4AWjNKwd',sim:false},
+  ]},
+  {group:'Mid-term stakers (1–2 years)',items:[
+    {label:'full staker since ep. 550 · set-and-forget',addr:'GaxoxaCxjxW27X745n46tVCg4PCQMg8yNMLbFcJoBDKr',sim:false},
+    {label:'full staker · 4 accounts since ep. 550',addr:'2N4937LH4nKVTymZ7sEHxBLu6KJKjTEBJZusG7Ke7DBp',sim:false},
+    {label:'partial staker · 10k staked, 2.4k idle',addr:'2cj2HXqGA1uMTEc3TwUW56tfV9mPZg6rKQ9Ane78xp8e',sim:false},
+    {label:'late converter · held 2 yrs, staked at ep. 700',addr:'J9pbneLHNgq41d44U3t7Y1gGF346uye6ZAxPFVFqCfrF',sim:false},
+  ]},
+  {group:'LST holders',items:[
+    {label:'mSOL whale · 22k mSOL',addr:'Fr8JaD1Q8aFCfcBsfixcrRTzygWshmbehAjgQKEFs48P',sim:false},
+    {label:'jitoSOL whale · 62k jitoSOL',addr:'F6ggfAY9GqYFBhmvBC8CwaaJBjgYY9WBodNKoxypHcGb',sim:false},
+  ]},
+  {group:'Recent wallets (simulated)',items:[
+    {label:'late fomo · staked at ep. 965',addr:'S1mLateFomoStakerXXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:880,stakeStart:965,frac:.85,apy:.064,holdings:60}},
+    {label:'day-one staker · joined ep. 940',addr:'S1mFreshFu11StakerXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:940,stakeStart:941,frac:.95,apy:.067,holdings:80}},
+    {label:'fresh wallet · not staking yet',addr:'S1mFreshUnstakedXXXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:940,frac:0,holdings:25}},
+  ]},
 ];
 
 /* ---------- seeded mock (kept for offline/demo mode) ---------- */
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 function rng(seed){let s=seed;return()=>{s=Math.imul(s^s>>>15,2246822519);s=Math.imul(s^s>>>13,3266489917);return((s^=s>>>16)>>>0)/4294967296}}
-function mockReport(addr){
+function mockReport(addr,o={}){
   const E=1000,r=rng(hash(addr));
-  const holdStart=60+Math.floor(r()*640), stakeStart=Math.min(holdStart+Math.floor(r()*r()*220),980);
-  const holdings=Math.round((2+r()*r()*4000)*100)/100, frac=0.35+r()*0.63, apy=0.062+r()*0.016;
+  const holdStart=o.holdStart??(60+Math.floor(r()*640));
+  const stakeStart=Math.min(o.stakeStart??(holdStart+Math.floor(r()*r()*220)),980);
+  const holdings=o.holdings??Math.round((2+r()*r()*4000)*100)/100;
+  const frac=o.frac??(0.35+r()*0.63), apy=o.apy??(0.062+r()*0.016);
+  const staked=frac>0;
   const mApy=0.0585; // Marinade mSOL benchmark for the counterfactual line
   const pe=Math.pow(1+apy,2.2/365)-1, mpe=Math.pow(1+mApy,2.2/365)-1, eps=[],hold=[],you=[],full=[],mnde=[];
   for(let e=holdStart;e<=E;e+=10){
@@ -358,11 +389,13 @@ function mockReport(addr){
   const earned=you[you.length-1]-holdings, fullPot=full[full.length-1]-holdings, mndePot=mnde[mnde.length-1]-holdings;
   return {wallet:addr,simulated:true,current:{epoch:E},
     series:{eps,hold,you,full,mnde},
-    card:{earnedSol:earned,stakedSol:holdings*frac,holdingsSol:you[you.length-1],avgStakedSol:holdings*frac,firstStakeEpoch:stakeStart,
-      epochsStaked:E-stakeStart,effApy:apy,totalApy:Math.pow(1+earned/holdings,160/Math.max(1,E-holdStart))-1,
+    card:{earnedSol:earned,stakedSol:holdings*frac,holdingsSol:you[you.length-1],avgStakedSol:holdings*frac,
+      firstStakeEpoch:staked?stakeStart:null,
+      epochsStaked:staked?E-stakeStart:0,effApy:staked?apy:0,
+      totalApy:Math.pow(1+earned/holdings,160/Math.max(1,E-holdStart))-1,
       efficiency:fullPot>0?Math.min(1,earned/fullPot):0,
       missedSol:Math.max(0,fullPot-earned),mndeRewardsSol:mndePot,mndeDeltaSol:mndePot-earned},
-    meta:{notes:['simulated profile — deterministic per address']}};
+    meta:{notes:['simulated profile — illustrative parameters, not a real wallet']}};
 }
 
 /* ---------- rendering ---------- */
@@ -664,7 +697,7 @@ function startSync(){
   sync.textContent='SYNCING… '+SYNC_MSGS[0];
   syncTimer=setInterval(()=>{i=(i+1)%SYNC_MSGS.length;sync.textContent='SYNCING… '+SYNC_MSGS[i]},2200);
 }
-async function check(addr,forceSim){
+async function check(addr,forceSim,simParams){
   addr=(addr??$('addr').value).trim();
   $('err').style.display='none';
   if(!B58.test(addr)){$('err').textContent="That doesn't look like a Solana address (32–44 base58 characters).";$('err').style.display='block';return}
@@ -674,22 +707,36 @@ async function check(addr,forceSim){
     if(forceSim)throw {sim:true};
     render(await window.buildReportLive(addr));
   }catch(e){
-    if(e&&e.sim){render(mockReport(addr))}
+    if(e&&e.sim){render(mockReport(addr,simParams))}
     else{
       $('err').textContent='Live lookup failed ('+(e.message||e)+') — showing a simulated profile instead. Retry in a minute (public RPC limits).';
       $('err').style.display='block';
-      render(mockReport(addr));
+      render(mockReport(addr,simParams));
     }
   }finally{setBusy(false)}
 }
 $('check').addEventListener('click',()=>check());
 $('addr').addEventListener('keydown',e=>{if(e.key==='Enter')check()});
-for(const d of DEMOS){
-  const b=document.createElement('button');
-  b.className='chip';b.textContent=d.label;
-  b.addEventListener('click',()=>{$('addr').value=d.addr;check(d.addr,d.sim)});
-  $('chips').appendChild(b);
-}
+(function buildDropdown(){
+  const sel=$('demo-select');
+  for(const grp of EXAMPLE_SETS){
+    const og=document.createElement('optgroup');og.label=grp.group;
+    grp.items.forEach((it,i)=>{
+      const o=document.createElement('option');
+      o.value=grp.group+'|'+i;
+      o.textContent=(it.sim?'🎲 ':'⚡ ')+it.label;
+      og.appendChild(o);
+      EXAMPLES.push({key:o.value,...it});
+    });
+    sel.appendChild(og);
+  }
+  sel.addEventListener('change',()=>{
+    const it=EXAMPLES.find(x=>x.key===sel.value);
+    if(!it)return;
+    $('addr').value=it.addr;
+    check(it.addr,it.sim,it.params);
+  });
+})();
 $('again').addEventListener('click',()=>{$('addr').value='';$('addr').focus();scrollTo({top:0,behavior:reduced?'auto':'smooth'})});
 $('copy').addEventListener('click',async e=>{
   try{await navigator.clipboard.writeText(e.currentTarget.dataset.text||'');
