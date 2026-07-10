@@ -17,17 +17,27 @@ Needs Node ≥ 20. The page has ⚡ live demo chips (real wallets) and a 🎲 si
 SIMULATED / LIVE badge). A "🕶 Hide amounts" toggle strips the wallet and SOL amounts
 from the card, PNG, and tweet (keeps %, grade, epochs, APY) for private sharing.
 
-## Hosting (handover)
+## Hosting
 
-The app is a single Node process serving static HTML + `/api/*`; the Helius key must
-stay server-side, so GitHub Pages alone won't work — pair a GitHub repo with any free
-Node host:
+**Live now (GitHub Pages, zero infra):** https://cerbah.github.io/epoch1000-staker-card/
+The `docs/` folder is a static build where the full pipeline runs in the visitor's
+browser — every upstream API (Helius, Marinade, Sanctum) is CORS-open from github.io.
+The Helius key is embedded in `docs/app.js` **on purpose** (public repo, team decision);
+rotate it in the Helius dashboard if usage misbehaves, then rebuild.
 
-1. Push this folder to a GitHub repo (`.gitignore` already excludes `.env`, caches, logs).
-2. Deploy to Render / Railway / Fly.io free tier — or any box with `docker build . && docker run -e HELIUS_API_KEY=… -p 4180:4180 …`
-   (Dockerfile included). Set `HELIUS_API_KEY` as a secret env var; done.
-3. `cache/` and `data/checks.jsonl` are plain files — mount a volume if you want them
-   to survive redeploys.
+Regenerate the static build after changing `lib/` or `public/index.html`:
+
+```bash
+HELIUS_API_KEY=… python3 scripts/build-static.py && git add docs && git commit && git push
+```
+
+Static-build trade-offs vs the Node server: per-visitor localStorage cache instead of a
+shared one (each first visit recomputes), no `data/checks.jsonl` address log, and the
+visitor's browser pays the API calls.
+
+**Server option (shared cache + checks log):** Render / Railway / Fly free tier, or
+`docker build . && docker run -e HELIUS_API_KEY=… -p 4180:4180 …` (Dockerfile and
+render.yaml included). Mount a volume for `cache/` + `data/` to survive redeploys.
 
 ## Data pipeline (`lib/pipeline.js`)
 
