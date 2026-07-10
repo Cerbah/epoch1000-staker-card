@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: epoch1000-staker-card
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js

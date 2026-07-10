@@ -1,0 +1,5 @@
+node_modules/
+cache/
+data/
+nohup.out
+*.log
