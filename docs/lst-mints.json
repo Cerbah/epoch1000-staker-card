@@ -1,0 +1,374 @@
+[
+ {
+  "mint": "BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85",
+  "symbol": "BNSOL",
+  "decimals": 9,
+  "fallbackRate": 1.110411
+ },
+ {
+  "mint": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+  "symbol": "JitoSOL",
+  "decimals": 9,
+  "fallbackRate": 1.275866
+ },
+ {
+  "mint": "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn",
+  "symbol": "dzSOL",
+  "decimals": 9,
+  "fallbackRate": 1.047532
+ },
+ {
+  "mint": "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v",
+  "symbol": "JupSOL",
+  "decimals": 9,
+  "fallbackRate": 1.183945
+ },
+ {
+  "mint": "Dso1bDeDjCQxTrWHqUUi63oBvV7Mdm6WaobLbQ7gnPQ",
+  "symbol": "dSOL",
+  "decimals": 9,
+  "fallbackRate": 1.189701
+ },
+ {
+  "mint": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+  "symbol": "mSOL",
+  "decimals": 9,
+  "fallbackRate": 1.376648
+ },
+ {
+  "mint": "cPQPBN7WubB3zyQDpzTK2ormx1BMdAym9xkrYUJsctm",
+  "symbol": "dumSOL",
+  "decimals": 9,
+  "fallbackRate": 1.027942
+ },
+ {
+  "mint": "sctmAy9zFfZznZUWxEMgGtF6PHZ3gwoiCGcfwRua1AZ",
+  "symbol": "sctmSOL",
+  "decimals": 9,
+  "fallbackRate": 1.090763
+ },
+ {
+  "mint": "DYNoyS3x5qgbccZg7RPXagm4xQzfnm5iwd9o8pMyJtdE",
+  "symbol": "dynoSOL",
+  "decimals": 9,
+  "fallbackRate": 1.054243
+ },
+ {
+  "mint": "pSo1f9nQXWgXibFtKf7NWYxb5enAM4qfP6UJSiXRQfL",
+  "symbol": "PSOL",
+  "decimals": 9,
+  "fallbackRate": 1.073631
+ },
+ {
+  "mint": "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+  "symbol": "INF",
+  "decimals": 9,
+  "fallbackRate": 1.407837
+ },
+ {
+  "mint": "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7",
+  "symbol": "vSOL",
+  "decimals": 9,
+  "fallbackRate": 1.149109
+ },
+ {
+  "mint": "Bybit2vBJGhPF52GBdNaQfUJ6ZpThSgHBobjWZpLPb4B",
+  "symbol": "bbSOL",
+  "decimals": 9,
+  "fallbackRate": 1.147564
+ },
+ {
+  "mint": "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn",
+  "symbol": "JSOL",
+  "decimals": 9,
+  "fallbackRate": 1.349217
+ },
+ {
+  "mint": "xSoL18r4U1k2ALa4yF857VDZJqCKecLtty92nscre3o",
+  "symbol": "xSHIN",
+  "decimals": 9,
+  "fallbackRate": 1.156113
+ },
+ {
+  "mint": "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF",
+  "symbol": "aeroSOL",
+  "decimals": 9,
+  "fallbackRate": 1.130343
+ },
+ {
+  "mint": "sctmB7GPi5L2Q5G9tUSzXvhZ4YiDMEGcRov9KfArQpx",
+  "symbol": "dfdvSOL",
+  "decimals": 9,
+  "fallbackRate": 1.076215
+ },
+ {
+  "mint": "jag58eRBC1c88LaAsRPspTMvoKJPbnzw9p9fREzHqyV",
+  "symbol": "jagSOL",
+  "decimals": 9,
+  "fallbackRate": 1.092491
+ },
+ {
+  "mint": "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
+  "symbol": "bSOL",
+  "decimals": 9,
+  "fallbackRate": 1.290721
+ },
+ {
+  "mint": "edge86g9cVz87xcpKpy3J77vbp4wYd9idEV562CCntt",
+  "symbol": "edgeSOL",
+  "decimals": 9,
+  "fallbackRate": 1.276092
+ },
+ {
+  "mint": "gateMurAxe4YFoUR6J63gXGKtkbTfdkMdLjZrCmThFP",
+  "symbol": "GTSOL",
+  "decimals": 9,
+  "fallbackRate": 1.039458
+ },
+ {
+  "mint": "DEF1NXSZ8Th9n28hYBayrFtx9bj1EwwTiy3mhHEB9oyA",
+  "symbol": "definSOL",
+  "decimals": 9,
+  "fallbackRate": 1.079725
+ },
+ {
+  "mint": "hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT",
+  "symbol": "hyloSOL",
+  "decimals": 9,
+  "fallbackRate": 1.051868
+ },
+ {
+  "mint": "BULKoNSGzxtCqzwTvg5hFJg8fx6dqZRScyXe5LYMfxrn",
+  "symbol": "BulkSOL",
+  "decimals": 9,
+  "fallbackRate": 1.079104
+ },
+ {
+  "mint": "BonK1YhkXEGLZzwtcvRTip3gAL9nCeQD7ppZBLXhtTs",
+  "symbol": "bonkSOL",
+  "decimals": 9,
+  "fallbackRate": 1.175801
+ },
+ {
+  "mint": "sSo1wxKKr6zW2hqf5hZrp2CawLibcwi1pMBqk5bg2G4",
+  "symbol": "LP-SOLAYER",
+  "decimals": 9,
+  "fallbackRate": 1.148149
+ },
+ {
+  "mint": "CgnTSoL3DgY9SFHxcLj6CgCgKKoTBr6tp4CPAEWy25DE",
+  "symbol": "cgntSOL",
+  "decimals": 9,
+  "fallbackRate": 1.271551
+ },
+ {
+  "mint": "LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp",
+  "symbol": "LST",
+  "decimals": 9,
+  "fallbackRate": 1.511993
+ },
+ {
+  "mint": "BPSoLzmLQn47EP5aa7jmFngRL8KC3TWAeAwXwZD8ip3P",
+  "symbol": "bpSOL",
+  "decimals": 9,
+  "fallbackRate": 1.094076
+ },
+ {
+  "mint": "CDCSoLckzozyktpAp9FWT3w92KFJVEUxAU7cNu2Jn3aX",
+  "symbol": "CDCSOL",
+  "decimals": 9,
+  "fallbackRate": 1.090793
+ },
+ {
+  "mint": "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
+  "symbol": "stSOL",
+  "decimals": 9,
+  "fallbackRate": 1.219142
+ },
+ {
+  "mint": "strng7mqqc1MBJJV6vMzYbEqnwVGvKKGKedeCvtktWA",
+  "symbol": "strongSOL",
+  "decimals": 9,
+  "fallbackRate": 1.177468
+ },
+ {
+  "mint": "haSo1Vz5aTsqEnz8nisfnEsipvbAAWpgzRDh2WhhMEh",
+  "symbol": "haSOL",
+  "decimals": 9,
+  "fallbackRate": 1.229629
+ },
+ {
+  "mint": "LAinEtNLgpmCP9Rvsf5Hn8W6EhNiKLZQti1xfWMLy6X",
+  "symbol": "laineSOL",
+  "decimals": 9,
+  "fallbackRate": 1.310727
+ },
+ {
+  "mint": "Ra1so1sTkvX3PorAM9ewqrsUMz9sPSbfFZ5oZUjN4oc",
+  "symbol": "raiSOL",
+  "decimals": 9,
+  "fallbackRate": 1.303788
+ },
+ {
+  "mint": "sctmadV2fcLtrxjzYhTZzwAGjXUXKtYSBrrM36EtdcY",
+  "symbol": "sfSOL",
+  "decimals": 9,
+  "fallbackRate": 1.080257
+ },
+ {
+  "mint": "HALALGvdNJ8u1J3uFFSsba1tyYPRF3vnYfCQ3CpJasfD",
+  "symbol": "iASOL",
+  "decimals": 9,
+  "fallbackRate": 1.091947
+ },
+ {
+  "mint": "picobAEvs6w7QEknPce34wAE4gknZA9v5tTonnmHYdX",
+  "symbol": "picoSOL",
+  "decimals": 9,
+  "fallbackRate": 1.19559
+ },
+ {
+  "mint": "MangmsBgFqJhW4cLUR9LxfVgMboY1xAoP8UUBiWwwuY",
+  "symbol": "mangoSOL",
+  "decimals": 9,
+  "fallbackRate": 1.145873
+ },
+ {
+  "mint": "LnTRntk2kTfWEY6cVB8K9649pgJbt6dJLS1Ns1GZCWg",
+  "symbol": "lanternSOL",
+  "decimals": 9,
+  "fallbackRate": 1.21207
+ },
+ {
+  "mint": "jucy5XJ76pHVvtPZb5TKRcGQExkwit2P5s4vY8UzmpC",
+  "symbol": "proSOL",
+  "decimals": 9,
+  "fallbackRate": 1.185469
+ },
+ {
+  "mint": "MpsoLp1YBDqeiuSrVrYH4DoAGJ3myAMmMy6crYNVSTo",
+  "symbol": "mpSOL",
+  "decimals": 9,
+  "fallbackRate": 1.055458
+ },
+ {
+  "mint": "hy1opf2bqRDwAxoktyWAj6f3UpeHcLydzEdKjMYGs2u",
+  "symbol": "hyloSOL+",
+  "decimals": 9,
+  "fallbackRate": 1.0
+ },
+ {
+  "mint": "phaseZSfPxTDBpiVb96H4XFSD8xHeHxZre5HerehBJG",
+  "symbol": "phaseSOL",
+  "decimals": 9,
+  "fallbackRate": 1.250859
+ },
+ {
+  "mint": "EPCz5LK372vmvCkZH3HgSuGNKACJJwwxsofW6fypCPZL",
+  "symbol": "rkSOL",
+  "decimals": 9,
+  "fallbackRate": 1.0
+ },
+ {
+  "mint": "XAnDeUmMcqFyCdef9jzpNgtZPjTj3xUMj9eXKn2reFN",
+  "symbol": "xandSOL",
+  "decimals": 9,
+  "fallbackRate": 1.111826
+ },
+ {
+  "mint": "HausGKcq9G9zM3azwNmgZyzUvYeeqR8h8663PmZpxuDj",
+  "symbol": "hausSOL",
+  "decimals": 9,
+  "fallbackRate": 1.161392
+ },
+ {
+  "mint": "HUBsveNpjo5pWqNkH57QzxjQASdTVXcSK7bVKTSZtcSX",
+  "symbol": "hubSOL",
+  "decimals": 9,
+  "fallbackRate": 1.171934
+ },
+ {
+  "mint": "ELSoL1owwMWQ9foMsutweCsMKbTPVBD9pFqxQGidTaMC",
+  "symbol": "elSOL",
+  "decimals": 9,
+  "fallbackRate": 1.272204
+ },
+ {
+  "mint": "sntn1oVhhKuytG42jyjneMYnGAtzkpJsBxHNEskTfGp",
+  "symbol": "sentSOL",
+  "decimals": 9,
+  "fallbackRate": 1.113919
+ },
+ {
+  "mint": "3bfv2scCdbvumVBc3Sar5QhYXx7Ecsi8EFF2akjxe329",
+  "symbol": "digitalSOL",
+  "decimals": 9,
+  "fallbackRate": 1.213537
+ },
+ {
+  "mint": "fuseYvhNJbSzdDByyTCrLcogsoNwAviB1WeewhbqgFc",
+  "symbol": "fuseSOL",
+  "decimals": 9,
+  "fallbackRate": 1.142834
+ },
+ {
+  "mint": "uPtSoL2qszk4SuPHNE2zqk1gDtqCq21ZE1yZCqvFTqq",
+  "symbol": "uptSOL",
+  "decimals": 9,
+  "fallbackRate": 1.001018
+ },
+ {
+  "mint": "Comp4ssDzXcLeu2MnLuGNNFC4cmLPMng8qWHPvzAMU1h",
+  "symbol": "compassSOL",
+  "decimals": 9,
+  "fallbackRate": 1.178746
+ },
+ {
+  "mint": "D1gittVxgtszzY4fMwiTfM4Hp7uL5Tdi1S9LYaepAUUm",
+  "symbol": "digitSOL",
+  "decimals": 9,
+  "fallbackRate": 1.197428
+ },
+ {
+  "mint": "pathdXw4He1Xk3eX84pDdDZnGKEme3GivBamGCVPZ5a",
+  "symbol": "pathSOL",
+  "decimals": 9,
+  "fallbackRate": 1.013891
+ },
+ {
+  "mint": "sctmWXGT7L75psrUHV2xxyTQKndE7ZcCQRHy2z6D5ER",
+  "symbol": "honestSOL",
+  "decimals": 9,
+  "fallbackRate": 1.080659
+ },
+ {
+  "mint": "MonkeD3uUj5c1w5tW8tJeTe5fX1jkpkdtD3dTibnidx",
+  "symbol": "MonkeSOL",
+  "decimals": 9,
+  "fallbackRate": 1.066238
+ },
+ {
+  "mint": "chSoLyETGSZpdpAk4TKfRWw5kyuHkzt5WaQ2kiJYJun",
+  "symbol": "chSOL",
+  "decimals": 9,
+  "fallbackRate": 1.145263
+ },
+ {
+  "mint": "gotMd6mpiWE4RWTv3eH3SrYjAXpxkQiZYY1zFKCNRq9",
+  "symbol": "gotmSOL",
+  "decimals": 9,
+  "fallbackRate": 1.027368
+ },
+ {
+  "mint": "pumpkinsEq8xENVZE6QgTS93EN4r9iKvNxNALS1ooyp",
+  "symbol": "pumpkinSOL",
+  "decimals": 9,
+  "fallbackRate": 1.180262
+ },
+ {
+  "mint": "vybe5DgwzGdvJMi4oH7TiQpubJd4QSDuGmbvWfACeb8",
+  "symbol": "vybeSOL",
+  "decimals": 9,
+  "fallbackRate": 1.088104
+ }
+]

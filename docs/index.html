@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Epoch 1000 — Your Staking Performance</title>
+<style>
+  :root{
+    --bg:#0B0E14; --panel:#10141D; --panel2:#151B29; --line:#1E2534; --line2:#2A3247;
+    --ink:#E8ECF4; --ink2:#9AA3B5; --ink3:#5E6778;
+    --grn:#14F195; --mnde:#95F0C5; --teal:#179F99;
+    --s-you:#0F9D63; --s-full:#9945FF; --s-hold:#5B8DEF; --s-mnde:#179F99;
+    --round:ui-rounded,"SF Pro Rounded","Nunito","Varela Round",system-ui,sans-serif;
+  }
+  html{background:var(--bg)}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    line-height:1.55;margin:0;-webkit-font-smoothing:antialiased}
+  body::before{content:"";display:block;height:3px;
+    background:linear-gradient(90deg,var(--teal),var(--grn) 45%,#9945FF)}
+  .mono{font-family:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace}
+  .num{font-variant-numeric:tabular-nums}
+  a{color:var(--grn)}
+  .wrap{max-width:860px;margin:0 auto;padding:0 24px}
+
+  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);padding:88px 0 80px;text-align:center}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(760px 380px at 50% -120px,rgba(23,159,153,.30),transparent 65%),
+               radial-gradient(560px 280px at 85% 115%,rgba(153,69,255,.12),transparent 60%),
+               radial-gradient(460px 240px at 10% 105%,rgba(20,241,149,.09),transparent 60%)}
+  .hero .wrap{position:relative}
+  .eyebrow{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--mnde);display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:22px}
+  .eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--mnde);
+    box-shadow:0 0 12px var(--mnde);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  h1{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-weight:700;letter-spacing:-.02em;
+    font-size:clamp(52px,9vw,104px);line-height:.95;margin:0 0 10px;text-wrap:balance}
+  .k{color:var(--grn)}
+  h1 .k{background:linear-gradient(100deg,var(--teal) 0%,var(--grn) 55%,var(--mnde) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:clamp(17px,2.4vw,21px);color:var(--ink2);max-width:34em;margin:18px auto 0;text-wrap:balance}
+  .sub strong{color:var(--ink);font-weight:600}
+
+  .checker{margin:-38px auto 0;position:relative;z-index:2}
+  .checker-box{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:24px 26px;
+    max-width:640px;margin:0 auto;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+  .checker-box label{display:block;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  input[type=text]{flex:1;min-width:240px;background:var(--bg);border:1px solid var(--line2);border-radius:6px;
+    color:var(--ink);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;padding:13px 14px;outline:none}
+  input[type=text]:focus{border-color:var(--mnde)}
+  button{cursor:pointer;font:inherit}
+  .btn{background:linear-gradient(95deg,var(--teal),#12CFA0 60%,var(--grn));color:#04211C;border:none;border-radius:6px;font-weight:700;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;padding:13px 26px;letter-spacing:.04em}
+  .btn:hover{filter:brightness(1.1)}
+  .btn[disabled]{opacity:.55;cursor:wait}
+  .btn:focus-visible,input:focus-visible,.chip:focus-visible,.ghost:focus-visible{outline:2px solid var(--grn);outline-offset:2px}
+  .hint{font-size:13px;color:var(--ink3);margin:12px 0 0}
+  .hint b{color:var(--ink2);font-weight:600}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+  .chip{background:transparent;border:1px solid var(--line2);color:var(--ink2);border-radius:99px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;padding:6px 12px}
+  .chip:hover{border-color:var(--mnde);color:var(--mnde)}
+  .sync{display:none;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;color:var(--grn);margin-top:14px}
+  .err{display:none;font-size:13px;color:#FF7A7A;margin-top:12px}
+
+  #results{display:none;padding:56px 0 0}
+  .sect-label{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 14px}
+  .badge{display:inline-block;border-radius:4px;padding:2px 8px;font-family:ui-monospace,Menlo,monospace;
+    font-size:10px;letter-spacing:.12em;margin-left:10px;vertical-align:1px}
+  .badge.live{background:rgba(20,241,149,.12);color:var(--grn);border:1px solid rgba(20,241,149,.35)}
+  .badge.sim{background:rgba(176,124,255,.12);color:#B07CFF;border:1px solid rgba(176,124,255,.35)}
+
+  .card{background:linear-gradient(160deg,#121826 0%,#0E1220 55%,#131022 100%);
+    border:1px solid var(--line2);border-radius:14px;overflow:hidden;position:relative}
+  .card::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:14px;
+    background:radial-gradient(600px 220px at 85% -10%,rgba(153,69,255,.16),transparent 60%),
+               radial-gradient(500px 200px at 0% 110%,rgba(20,241,149,.10),transparent 60%)}
+  .card-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:18px 26px;border-bottom:1px dashed var(--line2)}
+  .card-brand{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--ink2)}
+  .card-wallet{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;color:var(--ink2)}
+  .card-main{display:grid;grid-template-columns:1.2fr 1fr}
+  @media(max-width:640px){.card-main{grid-template-columns:1fr}}
+  .card-hero{padding:30px 26px 26px}
+  .hero-num-label{font-size:13px;color:var(--ink2);margin:0 0 6px}
+  .hero-num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-weight:700;letter-spacing:-.02em;
+    font-size:clamp(40px,6vw,58px);line-height:1;color:var(--grn);margin:0}
+  .hero-num small{font-size:.42em;font-weight:600;color:var(--ink2);letter-spacing:0}
+  .hero-sub{font-size:14px;color:var(--ink2);margin:12px 0 0}
+  .hero-sub .pct{color:var(--ink);font-weight:600}
+  .grade{position:relative;display:flex;flex-direction:column;justify-content:center;gap:6px;
+    padding:26px;border-left:1px dashed var(--line2)}
+  @media(max-width:640px){.grade{border-left:none;border-top:1px dashed var(--line2)}}
+  .grade-mark{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:56px;font-weight:700;line-height:1;color:#B07CFF}
+  .grade-name{font-family:var(--round);font-size:15px;font-weight:700;color:var(--ink)}
+  .grade-note{font-size:13px;color:var(--ink2)}
+  .card-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px dashed var(--line2)}
+  @media(max-width:640px){.card-stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{padding:16px 18px;border-left:1px dashed var(--line2)}
+  .stat:first-child{border-left:none}
+  @media(max-width:640px){.stat:nth-child(3){border-left:none}.stat:nth-child(n+3){border-top:1px dashed var(--line2)}}
+  .stat dt{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 4px}
+  .stat dd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:19px;font-weight:600;color:var(--ink);margin:0}
+  .stat dd small{font-size:12px;color:var(--ink2);font-weight:400}
+  .card-foot{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:12px 26px;border-top:1px dashed var(--line2);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3)}
+  .card-foot b{color:var(--mnde);font-weight:600}
+  .share-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  .share-x{text-decoration:none;display:inline-block}
+  .ghost{background:transparent;border:1px solid var(--line2);color:var(--ink);border-radius:6px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;padding:10px 18px;text-decoration:none;display:inline-block}
+  .ghost:hover{border-color:var(--grn);color:var(--grn)}
+  .ghost.subtle{border-color:transparent;color:var(--ink3)}
+  .ghost.subtle:hover{color:var(--ink2);border-color:transparent}
+  .ghost[aria-pressed="true"]{border-color:var(--mnde);color:var(--mnde)}
+  .salt{font-size:12.5px;color:var(--ink3);margin:12px 0 0}
+
+  .chart-sect{margin-top:64px}
+  .chart-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 22px 14px;position:relative}
+  .chart-title{font-size:16px;font-weight:600;margin:0 0 2px}
+  .chart-desc{font-size:13px;color:var(--ink2);margin:0 0 16px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 8px;font-size:13px;color:var(--ink2)}
+  .legend span,.legend label{display:inline-flex;align-items:center;gap:7px}
+  .legend label{cursor:pointer;color:var(--mnde);user-select:none}
+  .legend label.off{color:var(--ink3);cursor:not-allowed}
+  .legend label.off .swatch{opacity:.35}
+  .legend label input{accent-color:#179F99;margin:0}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .swatch.dash{background:repeating-linear-gradient(90deg,var(--s-mnde) 0 4px,transparent 4px 7px)}
+  .chart-scroll{overflow-x:auto}
+  #chart{display:block;width:100%;height:auto}
+  #tip{position:absolute;display:none;pointer-events:none;background:#1A2133;border:1px solid var(--line2);
+    border-radius:8px;padding:10px 12px;font-size:12.5px;min-width:210px;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  #tip .t-ep{font-family:ui-monospace,Menlo,monospace;color:var(--ink3);font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+  #tip .t-row{display:flex;justify-content:space-between;gap:16px;align-items:center;margin:3px 0}
+  #tip .t-row .lab{display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
+  #tip .t-row .val{font-family:ui-monospace,Menlo,monospace;color:var(--ink);font-variant-numeric:tabular-nums}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  .callout{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.callout{grid-template-columns:1fr}}
+  .co{border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:var(--panel)}
+  .co h3{font-family:var(--round);font-size:13.5px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+  .co p{font-size:14px;color:var(--ink2);margin:0}
+  .co p b{color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-weight:600}
+  .co.earn h3{color:var(--grn)}
+  .co.mnde{border-color:rgba(149,240,197,.32);background:linear-gradient(160deg,#10141D 0%,#0F1A18 100%)}
+  .co.mnde h3{color:var(--mnde)}
+  .co.mnde a{color:var(--mnde);font-weight:600}
+
+  details.tbl{margin-top:18px}
+  details.tbl summary{cursor:pointer;font-size:13px;color:var(--ink3)}
+  details.tbl summary:hover{color:var(--ink2)}
+  .tbl-scroll{overflow-x:auto;margin-top:10px}
+  table{border-collapse:collapse;font-size:13px;min-width:480px}
+  th,td{text-align:right;padding:6px 14px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  th:first-child,td:first-child{text-align:left}
+  th{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink3);font-weight:600}
+  td{font-family:ui-monospace,Menlo,monospace;color:var(--ink2)}
+
+  .meta-notes{margin-top:16px;font-size:12.5px;color:var(--ink3);font-family:ui-monospace,Menlo,monospace}
+  .meta-notes li{margin:2px 0}
+
+  .epoch-live{margin:72px auto 0;padding-bottom:40px}
+  .ep-box{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:20px 24px}
+  .ep-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .ep-label{font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2)}
+  .ep-label b{color:var(--grn);font-weight:700}
+  .ep-label .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mnde);
+    box-shadow:0 0 10px var(--mnde);margin-right:9px;animation:pulse 2s ease-in-out infinite;vertical-align:1px}
+  .ep-pct{font-family:ui-monospace,Menlo,monospace;font-size:20px;font-weight:700;color:var(--mnde)}
+  .ep-bar{height:10px;border-radius:6px;background:var(--bg);border:1px solid var(--line2);overflow:hidden}
+  .ep-fill{height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#179F99,var(--grn));
+    box-shadow:0 0 12px rgba(20,241,149,.35);transition:width 1s linear}
+  .ep-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink3)}
+  footer{border-top:1px solid var(--line);padding:30px 0 48px;font-size:13px;color:var(--ink3)}
+  footer .season{color:var(--mnde);font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.08em}
+  footer .poc{display:inline-block;border:1px solid var(--line2);border-radius:4px;padding:2px 8px;
+    font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.08em;color:var(--ink2);margin-bottom:10px}
+
+  @media(prefers-reduced-motion:reduce){.eyebrow::before{animation:none}}
+</style>
+<script src="./app.js"></script>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Mainnet · Epoch 1,000 reached</p>
+    <h1>EPOCH <span class="k">1000</span><br>IS HERE.</h1>
+    <p class="sub"><strong>How much SOL did you stake — and how much did you earn?</strong>
+    Check your staking performance, get your staker card, and see where you'd be if you'd staked it all from day one.</p>
+  </div>
+</div>
+
+<div class="wrap checker">
+  <div class="checker-box">
+    <label for="addr">Check your wallet</label>
+    <div class="row">
+      <input type="text" id="addr" spellcheck="false" autocomplete="off"
+             placeholder="Paste any Solana wallet address…" aria-describedby="addr-hint">
+      <button class="btn" id="check">Check&nbsp;→</button>
+    </div>
+    <p class="hint" id="addr-hint"><b>No connect. No signature.</b> Read-only lookup of your on-chain history across 1,000 epochs.</p>
+    <div class="chips" id="chips" aria-label="Demo wallets"></div>
+    <p class="sync mono" id="sync" role="status">SYNCING…</p>
+    <p class="err" id="err"></p>
+  </div>
+</div>
+
+<div class="wrap" id="results" aria-live="polite">
+  <p class="sect-label">// Your staker card <span class="badge" id="badge"></span></p>
+
+  <div class="card" id="card">
+    <div class="card-top">
+      <span class="card-brand">EPOCH <span class="k">1000</span> · STAKER CARD</span>
+      <span class="card-wallet num" id="c-wallet">—</span>
+    </div>
+    <div class="card-main">
+      <div class="card-hero">
+        <p class="hero-num-label" id="c-hero-label">Staking rewards earned</p>
+        <p class="hero-num num"><span id="c-earned">0.00</span> <small id="c-earned-unit">SOL</small></p>
+        <p class="hero-sub" id="c-sub"></p>
+      </div>
+      <div class="grade">
+        <span class="grade-mark" id="c-grade">—</span>
+        <span class="grade-name" id="c-grade-name">—</span>
+        <span class="grade-note num" id="c-eff">—</span>
+      </div>
+    </div>
+    <dl class="card-stats">
+      <div class="stat"><dt>SOL staked now</dt><dd class="num"><span id="c-staked">—</span></dd></div>
+      <div class="stat"><dt>First staked</dt><dd class="num" id="c-first">—</dd></div>
+      <div class="stat"><dt>Epochs staked</dt><dd class="num"><span id="c-epochs">—</span> <small id="c-eptotal">/ 1000</small></dd></div>
+      <div class="stat"><dt>APY · staked / total SOL</dt><dd class="num"><span id="c-apy">—</span>% <small>/ <span id="c-apy-total">—</span>%</small></dd></div>
+    </dl>
+    <div class="card-foot">
+      <span id="c-foot-left">Marinating since ep. — 🧑‍🍳</span>
+      <span>staked on Solana · <b>marinade.finance</b></span>
+    </div>
+  </div>
+
+  <div class="share-row">
+    <a class="btn share-x" id="tweet" href="#" target="_blank" rel="noopener">𝕏 Share my card</a>
+    <button class="ghost" id="png">⤓ PNG card</button>
+    <button class="ghost" id="privacy" aria-pressed="false" title="Share percentages, grade and epochs — no wallet, no SOL amounts">🕶 Hide amounts</button>
+    <button class="ghost" id="copy">⧉ Copy stats</button>
+    <button class="ghost subtle" id="again">↺ Check another wallet</button>
+  </div>
+  <p class="salt">⚠️ Best-effort on-chain reconstruction — data collection may be incomplete. Take these numbers with a grain of salt.</p>
+
+  <div class="chart-sect">
+    <p class="sect-label">// The three timelines</p>
+    <div class="chart-box">
+      <h2 class="chart-title">Where your SOL ended up — and where it could have been</h2>
+      <p class="chart-desc">Your balance replayed across epochs, versus never staking and versus holding it all as mSOL from your first epoch.</p>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--s-full)"></i>Fully staked from day one</span>
+        <span><i class="swatch" style="background:var(--s-you)"></i>Your staking</span>
+        <span><i class="swatch" style="background:var(--s-hold)"></i>Never staked</span>
+        <label id="mnde-label" title="Same deposits, same timing — but yielding Marinade's mSOL APY">
+          <input type="checkbox" id="mnde-toggle"><i class="swatch dash"></i>Replace my staking with Marinade 🧑‍🍳
+        </label>
+      </div>
+      <div class="chart-scroll">
+        <svg id="chart" viewBox="0 0 800 360" role="img" aria-label="Line chart comparing balance over epochs for three scenarios: fully staked, your staking, never staked."></svg>
+      </div>
+      <div id="tip"></div>
+      <details class="tbl">
+        <summary>View as table</summary>
+        <div class="tbl-scroll"><table id="dataTable">
+          <thead><tr><th scope="col">Epoch</th><th scope="col">Never staked</th><th scope="col">Your staking</th><th scope="col">With Marinade</th><th scope="col">Fully staked</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </details>
+    </div>
+
+    <div class="callout">
+      <div class="co earn">
+        <h3>▲ What staking earned you</h3>
+        <p><b id="co-earned">—</b> SOL of staking rewards<span id="co-since"></span>. Unstaked, your balance line would be flat.</p>
+      </div>
+      <div class="co mnde">
+        <h3>🧑‍🍳 Let the rest marinate</h3>
+        <p><b id="co-missed">—</b> more SOL if 100% had been staked since your first epoch. <span id="co-mnde"></span>
+        Epoch 1001 starts now — stake it with <a href="https://marinade.finance" target="_blank" rel="noopener">Marinade</a>,
+        liquid (mSOL) or native, and put every epoch to work.</p>
+      </div>
+    </div>
+
+    <details class="tbl" id="how-box"><summary>How we computed this</summary>
+      <ul class="meta-notes" id="meta-notes"></ul>
+    </details>
+  </div>
+</div>
+
+<div class="wrap epoch-live">
+  <div class="ep-box" aria-label="Live epoch progress">
+    <div class="ep-head">
+      <span class="ep-label"><span class="dot"></span>EPOCH <b id="ep-num">1,000</b> · IN PROGRESS</span>
+      <span class="ep-pct num" id="ep-pct">—</span>
+    </div>
+    <div class="ep-bar"><div class="ep-fill" id="ep-fill"></div></div>
+    <div class="ep-meta num"><span id="ep-slots">slot — / 432,000</span><span id="ep-eta">epoch 1001 in ~—</span></div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span class="poc">PROOF OF CONCEPT</span> <span class="season">· seasoned with Marinade 🧑‍🍳</span><br>
+    <span id="foot-src">Live mode reconstructs your history from on-chain data via Helius (archival inflation rewards,
+    parsed transaction replay) and Marinade's staking-rewards crawler. The "fully staked" counterfactual compounds at
+    Marinade's mSOL APY. Reconstruction is approximate — sampled rewards, capped replay depth, back-compounded LST rates.</span>
+    Forked from solana.com/epoch1000.
+  </div>
+</footer>
+
+<script>
+'use strict';
+const fmt=(n,d=2)=>n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const $=id=>document.getElementById(id);
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Demo chips: live wallets hit the real API; sim chips use the seeded mock. */
+const DEMOS=[
+  {label:'🎲 simulated demo', addr:'DemoWha1eStakedEar1yAndFu11yVar18XXXXXXXXXXX', sim:true},
+  {label:'⚡ og whale', addr:'5TdTFGzKKmjQ1XEenkjwg8mEB4D9g3hwtXHDxoVtNLYU', sim:false},
+  {label:'⚡ native staker', addr:'8D3WfeL6VP4oG9FmtJEg2YVmoP1TdogemswzquiVCjFL', sim:false},
+  {label:'⚡ veteran staker', addr:'9QXqs2v22VmTGMdNPXEEBPp3e6NwM9enGAmNhV3LDUZ1', sim:false},
+  {label:'⚡ mSOL holder', addr:'2YWVuVfTB6tWVNeHLys6tPVKh2TkafKFqTxX7BMYwBHJ', sim:false},
+  {label:'⚡ sleepy holder', addr:'GncNANUhbPoD82FWUws9K3CgkNkzhAHcQJCNW7VVKkd7', sim:false},
+];
+
+/* ---------- seeded mock (kept for offline/demo mode) ---------- */
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let s=seed;return()=>{s=Math.imul(s^s>>>15,2246822519);s=Math.imul(s^s>>>13,3266489917);return((s^=s>>>16)>>>0)/4294967296}}
+function mockReport(addr){
+  const E=1000,r=rng(hash(addr));
+  const holdStart=60+Math.floor(r()*640), stakeStart=Math.min(holdStart+Math.floor(r()*r()*220),980);
+  const holdings=Math.round((2+r()*r()*4000)*100)/100, frac=0.35+r()*0.63, apy=0.062+r()*0.016;
+  const mApy=0.0585; // Marinade mSOL benchmark for the counterfactual line
+  const pe=Math.pow(1+apy,2.2/365)-1, mpe=Math.pow(1+mApy,2.2/365)-1, eps=[],hold=[],you=[],full=[],mnde=[];
+  for(let e=holdStart;e<=E;e+=10){
+    eps.push(e);hold.push(holdings);
+    full.push(holdings*Math.pow(1+mpe,e-holdStart));                                    // hold + pot on all holdings
+    you.push(holdings*(1-frac)+holdings*frac*Math.pow(1+pe,Math.max(0,e-stakeStart)));
+    mnde.push(holdings+holdings*frac*(Math.pow(1+mpe,Math.max(0,e-stakeStart))-1));     // hold + pot on staked part
+  }
+  const earned=you[you.length-1]-holdings, fullPot=full[full.length-1]-holdings, mndePot=mnde[mnde.length-1]-holdings;
+  return {wallet:addr,simulated:true,current:{epoch:E},
+    series:{eps,hold,you,full,mnde},
+    card:{earnedSol:earned,stakedSol:holdings*frac,holdingsSol:you[you.length-1],avgStakedSol:holdings*frac,firstStakeEpoch:stakeStart,
+      epochsStaked:E-stakeStart,effApy:apy,totalApy:Math.pow(1+earned/holdings,160/Math.max(1,E-holdStart))-1,
+      efficiency:fullPot>0?Math.min(1,earned/fullPot):0,
+      missedSol:Math.max(0,fullPot-earned),mndeRewardsSol:mndePot,mndeDeltaSol:mndePot-earned},
+    meta:{notes:['simulated profile — deterministic per address']}};
+}
+
+/* ---------- rendering ---------- */
+let current=null;
+function grade(eff){
+  if(eff>=0.9)  return ['S','Validator-tier staker','Near-perfect. You barely left rewards behind.'];
+  if(eff>=0.7)  return ['A','Committed staker','Strong. A little idle SOL, nothing more.'];
+  if(eff>=0.45) return ['B','Part-time staker','Solid — but half your SOL sat on the bench.'];
+  if(eff>=0.2)  return ['C','Casual staker','Your SOL napped through most of 1,000 epochs.'];
+  return ['D','Diamond-handed sleeper','Held through everything. Earned almost nothing.'];
+}
+
+let privateMode=false;
+function applyCard(animate){
+  const {card:c,gm,beat,short}=current;
+  const avg=c.avgStakedSol!==undefined?c.avgStakedSol:c.holdingsSol-c.earnedSol;
+  const growth=avg>0?c.earnedSol/avg*100:0;
+  $('c-wallet').textContent=privateMode?'🕶 anonymous staker':short;
+  if(privateMode){
+    $('c-hero-label').textContent='Staking growth';
+    $('c-earned').textContent='+'+fmt(growth,1);
+    $('c-earned-unit').textContent='%';
+    $('c-sub').innerHTML=`Earned while you slept. You out-earned <span class="pct">${beat}%</span> of non-staking wallets.`;
+    $('c-staked').textContent='🕶';
+  }else{
+    $('c-hero-label').textContent='Staking rewards earned';
+    $('c-earned-unit').textContent='SOL';
+    if(animate)countUp($('c-earned'),c.earnedSol);else $('c-earned').textContent=fmt(c.earnedSol);
+    $('c-sub').innerHTML=`That's a <span class="pct">+${fmt(growth,1)}%</span> return on your average stake — earned while you slept. You out-earned <span class="pct">${beat}%</span> of non-staking wallets.`;
+    $('c-staked').textContent=fmt(c.stakedSol,c.stakedSol>100?0:2);
+  }
+  const text=privateMode
+    ?`Epoch 1000 ⏳ Staking since epoch ${c.firstStakeEpoch??'—'} · +${fmt(growth,1)}% growth · ${fmt(c.effApy*100,2)}% APY · staker grade ${gm}. How did your 1,000 epochs go?`
+    :`Epoch 1000 ⏳ I staked ${fmt(c.stakedSol,0)} SOL and earned ${fmt(c.earnedSol)} SOL in rewards (${fmt(c.effApy*100,2)}% APY) — staker grade ${gm}. How did your 1,000 epochs go?`;
+  $('tweet').href='https://twitter.com/intent/tweet?text='+encodeURIComponent(text);
+  $('copy').dataset.text=text;
+}
+
+function render(data){
+  const {card:c,series:s}=data, E=data.current.epoch;
+  const [gm,gn,gnote]=grade(c.efficiency);
+  const beat=Math.min(99,Math.round(55+c.efficiency*44));
+  const short=data.wallet.slice(0,4)+'…'+data.wallet.slice(-4);
+  current={...data,gm,gn,beat,short};
+
+  const badge=$('badge');
+  badge.className='badge '+(data.simulated?'sim':'live');
+  badge.textContent=data.simulated?'SIMULATED':(data.captured?'LIVE ON-CHAIN · CAPTURED '+data.captured:'LIVE ON-CHAIN DATA');
+
+  applyCard(true);
+  $('c-grade').textContent=gm;
+  $('c-grade-name').textContent=gn;
+  $('c-eff').textContent=gnote+' Efficiency: '+Math.round(c.efficiency*100)+'%.';
+  $('c-first').textContent=c.firstStakeEpoch!==null?'ep. '+c.firstStakeEpoch:'never';
+  $('c-epochs').textContent=c.epochsStaked.toLocaleString();
+  $('c-eptotal').textContent='/ '+E.toLocaleString();
+  $('c-apy').textContent=fmt(c.effApy*100,2);
+  $('c-apy-total').textContent=fmt((c.totalApy??c.effApy)*100,2);
+  $('c-foot-left').textContent=c.firstStakeEpoch!==null?`Marinating since ep. ${c.firstStakeEpoch} 🧑‍🍳`:'Not marinating yet 🧑‍🍳';
+  $('co-earned').textContent=fmt(c.earnedSol);
+  $('co-since').textContent=c.firstStakeEpoch!==null?` since epoch ${c.firstStakeEpoch}`:'';
+  $('co-missed').textContent=fmt(c.missedSol);
+  const md=c.mndeDeltaSol, mr=c.mndeRewardsSol;
+  const neverStaked=c.firstStakeEpoch===null&&!(mr>0);
+  $('co-mnde').textContent=mr===undefined?'':(neverStaked
+    ?`This wallet never staked, so there's no staking history to replace — the purple line is what Marinade would have done with it.`
+    :md>0.005
+    ?`On your exact staking history, Marinade's yield would have paid ${fmt(mr)} SOL — ${fmt(md)} SOL more than you earned (teal line above).`
+    :`On your exact staking history, Marinade's yield would have paid ${fmt(mr)} SOL — your validators kept pace. Nice picks.`);
+  const mt=$('mnde-toggle'), ml=$('mnde-label');
+  mt.disabled=neverStaked;
+  if(neverStaked)mt.checked=false;
+  ml.classList.toggle('off',neverStaked);
+  ml.title=neverStaked
+    ?'Nothing to replace — this wallet never staked. The purple line is its SOL fully staked with Marinade.'
+    :"Same deposits, same timing — but yielding Marinade's mSOL APY";
+
+  const notes=$('meta-notes');notes.innerHTML='';
+  const ns=data.meta?.notes??[];
+  $('how-box').style.display=ns.length?'':'none';
+  for(const n of ns)notes.insertAdjacentHTML('beforeend',`<li>· ${n}</li>`);
+
+  drawChart(s,c.firstStakeEpoch,E,$('mnde-toggle').checked);
+  fillTable(s);
+  $('results').style.display='block';
+  $('results').scrollIntoView({behavior:reduced?'auto':'smooth'});
+}
+
+function countUp(el,target){
+  if(reduced){el.textContent=fmt(target);return}
+  const t0=performance.now(),dur=900;
+  (function tick(t){const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);
+    el.textContent=fmt(target*e);if(k<1)requestAnimationFrame(tick)})(t0);
+}
+
+/* ---------- chart ---------- */
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);return n}
+let chartGeom=null;
+function drawChart(s,stakeStart,E,showMnde){
+  const svg=$('chart');svg.innerHTML='';
+  const W=800,H=360,M={t:16,r:150,b:34,l:56};
+  const iw=W-M.l-M.r,ih=H-M.t-M.b;
+  const x0=s.eps[0],x1=E;
+  const withMnde=showMnde&&Array.isArray(s.mnde);
+  const yMax=Math.max(...s.full,...s.you,...(withMnde?s.mnde:[0]))*1.04,yMin=Math.min(...s.hold,0.001)*0.92;
+  const X=e=>M.l+(e-x0)/Math.max(1,x1-x0)*iw;
+  const Y=v=>M.t+ih-(v-yMin)/Math.max(1e-9,yMax-yMin)*ih;
+  chartGeom={X,Y,x0,x1,M,iw,ih,s,W,H,withMnde};
+
+  for(let i=0;i<=4;i++){
+    const v=yMin+(yMax-yMin)*i/4,y=Y(v);
+    svg.appendChild(el('line',{x1:M.l,x2:W-M.r,y1:y,y2:y,stroke:'#1E2534','stroke-width':1}));
+    const t=el('text',{x:M.l-8,y:y+4,'text-anchor':'end',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});
+    t.textContent=v>=1000?fmt(v/1000,1)+'k':fmt(v,v<10?1:0);svg.appendChild(t);
+  }
+  for(const e of [x0,Math.round((x0+x1)/2),x1]){
+    const t=el('text',{x:X(e),y:H-10,'text-anchor':'middle',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});
+    t.textContent='ep. '+e;svg.appendChild(t);
+  }
+  if(stakeStart!==null&&stakeStart>x0){
+    svg.appendChild(el('line',{x1:X(stakeStart),x2:X(stakeStart),y1:M.t,y2:M.t+ih,stroke:'#2A3247','stroke-width':1,'stroke-dasharray':'3 4'}));
+    const t=el('text',{x:X(stakeStart)+5,y:M.t+12,fill:'#5E6778','font-size':10,'font-family':'ui-monospace,Menlo,monospace'});
+    t.textContent='you staked';svg.appendChild(t);
+  }
+
+  const css=getComputedStyle(document.documentElement);
+  const C={hold:css.getPropertyValue('--s-hold').trim(),you:css.getPropertyValue('--s-you').trim(),
+           full:css.getPropertyValue('--s-full').trim(),mnde:css.getPropertyValue('--s-mnde').trim()};
+  const path=arr=>arr.map((v,i)=>(i?'L':'M')+X(s.eps[i]).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  svg.appendChild(el('path',{d:path(s.you)+`L${X(x1).toFixed(1)} ${Y(yMin)}L${X(x0).toFixed(1)} ${Y(yMin)}Z`,fill:C.you,opacity:.10,stroke:'none'}));
+  for(const [key,arr] of [['full',s.full],['hold',s.hold],['you',s.you]])
+    svg.appendChild(el('path',{d:path(arr),fill:'none',stroke:C[key],'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
+  if(withMnde)
+    svg.appendChild(el('path',{d:path(s.mnde),fill:'none',stroke:C.mnde,'stroke-width':2,'stroke-dasharray':'5 4','stroke-linejoin':'round','stroke-linecap':'round'}));
+
+  const labels=[['full','Full stake'],['you','You'],['hold','Unstaked'],...(withMnde?[['mnde','w/ Marinade']]:[])],used=[];
+  for(const [key,lab] of labels){
+    const v=s[key][s.eps.length-1],cx=X(x1),cyRaw=Y(v);
+    let cy=cyRaw;for(const u of used){if(Math.abs(cy-u)<14)cy=u+14}used.push(cy);
+    svg.appendChild(el('circle',{cx,cy:cyRaw,r:4,fill:C[key],stroke:'#0B0E14','stroke-width':2}));
+    const t=el('text',{x:cx+9,y:cy+4,fill:C[key],'font-size':11.5,'font-weight':600,'font-family':'ui-monospace,Menlo,monospace'});
+    t.textContent=`${lab} · ${v>=1000?fmt(v/1000,1)+'k':fmt(v,v<10?1:0)}`;svg.appendChild(t);
+  }
+
+  const ch=el('g',{id:'ch',style:'display:none'});
+  ch.appendChild(el('line',{id:'ch-l',y1:M.t,y2:M.t+ih,stroke:'#5E6778','stroke-width':1,'stroke-dasharray':'2 3'}));
+  for(const key of ['full','you','hold',...(withMnde?['mnde']:[])])ch.appendChild(el('circle',{id:'ch-'+key,r:4.5,fill:C[key],stroke:'#0B0E14','stroke-width':2}));
+  svg.appendChild(ch);
+  const hover=el('rect',{x:M.l,y:M.t,width:iw,height:ih,fill:'transparent',style:'cursor:crosshair'});
+  hover.addEventListener('mousemove',onHover);hover.addEventListener('mouseleave',hideTip);
+  svg.appendChild(hover);
+}
+function onHover(ev){
+  const g=chartGeom;if(!g)return;
+  const svg=$('chart'),r=svg.getBoundingClientRect();
+  const px=(ev.clientX-r.left)*(g.W/r.width);
+  const e=g.x0+(px-g.M.l)/g.iw*(g.x1-g.x0);
+  let i=0,best=1e18; // nearest grid epoch (grid may be irregular)
+  for(let k=0;k<g.s.eps.length;k++){const d=Math.abs(g.s.eps[k]-e);if(d<best){best=d;i=k}}
+  const ep=g.s.eps[i],x=g.X(ep);
+  $('ch').style.display='';
+  const l=$('ch-l');l.setAttribute('x1',x);l.setAttribute('x2',x);
+  const css=getComputedStyle(document.documentElement);
+  const rows=[['full','Fully staked',g.s.full[i],css.getPropertyValue('--s-full')],
+              ...(g.withMnde?[['mnde','With Marinade',g.s.mnde[i],css.getPropertyValue('--s-mnde')]]:[]),
+              ['you','Your staking',g.s.you[i],css.getPropertyValue('--s-you')],
+              ['hold','Never staked',g.s.hold[i],css.getPropertyValue('--s-hold')]];
+  for(const [k,,v] of rows){const c=$('ch-'+k);c.setAttribute('cx',x);c.setAttribute('cy',g.Y(v))}
+  const tip=$('tip');
+  tip.innerHTML='<div class="t-ep">Epoch '+ep.toLocaleString()+'</div>'+
+    rows.map(([,lab,v,col])=>'<div class="t-row"><span class="lab"><i class="dot" style="background:'+col+'"></i>'+lab+
+      '</span><span class="val">'+fmt(v)+' SOL</span></div>').join('');
+  tip.style.display='block';
+  const box=$('chart').closest('.chart-box').getBoundingClientRect();
+  let tx=ev.clientX-box.left+16,ty=ev.clientY-box.top-10;
+  if(tx+230>box.width)tx-=260;
+  tip.style.left=tx+'px';tip.style.top=ty+'px';
+}
+function hideTip(){$('tip').style.display='none';const c=$('ch');if(c)c.style.display='none'}
+
+function fillTable(s){
+  const tb=$('dataTable').tBodies[0];tb.innerHTML='';
+  for(let i=0;i<s.eps.length;i+=Math.ceil(s.eps.length/12)){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${s.eps[i]}</td><td>${fmt(s.hold[i])}</td><td>${fmt(s.you[i])}</td><td>${s.mnde?fmt(s.mnde[i]):'—'}</td><td>${fmt(s.full[i])}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+/* ---------- PNG share card ---------- */
+const MONO='Menlo,Consolas,"DejaVu Sans Mono",monospace';
+function measure(x,str,font){const f=x.font;x.font=font;const w=x.measureText(str).width;x.font=f;return w}
+function rr(x,rx,ry,rw,rh,r){x.beginPath();if(x.roundRect)x.roundRect(rx,ry,Math.max(rw,0.01),rh,r);else x.rect(rx,ry,Math.max(rw,0.01),rh);x.fill()}
+function downloadCard(){
+  if(!current)return;
+  const {card:c,series:s,gm,gn,beat,short}=current,E=current.current.epoch;
+  const W=1200,H=675,cv=document.createElement('canvas');
+  cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  x.fillStyle='#0B0E14';x.fillRect(0,0,W,H);
+  let g=x.createRadialGradient(W*.86,-60,0,W*.86,-60,560);
+  g.addColorStop(0,'rgba(153,69,255,.24)');g.addColorStop(1,'rgba(153,69,255,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  g=x.createRadialGradient(40,H+60,0,40,H+60,560);
+  g.addColorStop(0,'rgba(20,241,149,.16)');g.addColorStop(1,'rgba(20,241,149,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.strokeStyle='#2A3247';x.lineWidth=2;
+  if(x.roundRect){x.beginPath();x.roundRect(20,20,W-40,H-40,18);x.stroke()}else x.strokeRect(20,20,W-40,H-40);
+  const dash=y=>{x.save();x.strokeStyle='#2A3247';x.lineWidth=1;x.setLineDash([6,8]);
+    x.beginPath();x.moveTo(56,y);x.lineTo(W-56,y);x.stroke();x.restore()};
+
+  x.textBaseline='alphabetic';x.textAlign='left';
+  x.font='600 24px '+MONO;
+  x.fillStyle='#9AA3B5';x.fillText('EPOCH',56,92);
+  x.fillStyle='#14F195';x.fillText('1000',56+x.measureText('EPOCH ').width,92);
+  x.fillStyle='#9AA3B5';x.fillText('· STAKER CARD',56+x.measureText('EPOCH 1000 ').width,92);
+  x.textAlign='right';x.fillStyle='#5E6778';x.fillText(privateMode?'🕶 anonymous staker':short,W-56,92);
+  dash(120);
+
+  const avg=c.avgStakedSol!==undefined?c.avgStakedSol:c.holdingsSol-c.earnedSol;
+  const growth=avg>0?c.earnedSol/avg*100:0;
+  x.textAlign='left';
+  x.font='400 22px '+MONO;x.fillStyle='#9AA3B5';
+  x.fillText(privateMode?'STAKING GROWTH':'STAKING REWARDS EARNED',56,186);
+  x.font='700 108px '+MONO;x.fillStyle='#14F195';
+  const numStr=privateMode?('+'+fmt(growth,1)+'%'):fmt(c.earnedSol);
+  x.fillText(numStr,52,300);
+  if(!privateMode){
+    const numW=measure(x,numStr,'700 108px '+MONO);
+    x.font='600 40px '+MONO;x.fillStyle='#9AA3B5';x.fillText('SOL',52+numW+18,300);
+  }
+  x.font='400 24px '+MONO;x.fillStyle='#9AA3B5';
+  x.fillText(privateMode
+    ?`out-earned ${beat}% of non-staking wallets · earned while sleeping`
+    :`+${fmt(growth,1)}% on your average stake · out-earned ${beat}% of non-stakers`,56,352);
+
+  x.textAlign='center';
+  x.font='700 130px '+MONO;x.fillStyle='#B07CFF';x.fillText(gm,W-190,300);
+  x.font='700 24px system-ui,sans-serif';x.fillStyle='#E8ECF4';x.fillText(gn,W-190,348);
+
+  dash(392);
+  const bx=56,bw=W-112,by=430,e0=s.eps[0];
+  x.fillStyle='#1E2534';rr(x,bx,by,bw,12,6);
+  const px=e=>bx+bw*(e/E);
+  if(c.firstStakeEpoch!==null){
+    x.fillStyle='rgba(91,141,239,.55)';rr(x,px(e0),by,px(c.firstStakeEpoch)-px(e0),12,6);
+    x.fillStyle='#14F195';rr(x,px(c.firstStakeEpoch),by,px(E)-px(c.firstStakeEpoch),12,6);
+  }else{x.fillStyle='rgba(91,141,239,.55)';rr(x,px(e0),by,px(E)-px(e0),12,6)}
+  x.font='400 18px '+MONO;x.fillStyle='#5E6778';
+  x.textAlign='left';x.fillText('ep. 0',bx,by+42);
+  x.textAlign='right';x.fillText('ep. '+E,bx+bw,by+42);
+  if(c.firstStakeEpoch!==null){
+    x.textAlign='center';x.fillStyle='#14F195';
+    x.fillText('▲ staked ep. '+c.firstStakeEpoch,Math.min(Math.max(px(c.firstStakeEpoch),150),W-200),by+42);
+  }
+
+  dash(500);
+  const stats=[privateMode?['OUT-EARNED',beat+'% of wallets']:['SOL STAKED',fmt(c.stakedSol,c.stakedSol>100?0:2)],
+               ['FIRST STAKED',c.firstStakeEpoch!==null?'ep. '+c.firstStakeEpoch:'never'],
+               ['EPOCHS STAKED',c.epochsStaked+' / '+E],
+               ['APY STAKED / TOTAL',fmt(c.effApy*100,2)+'% / '+fmt((c.totalApy??c.effApy)*100,2)+'%']];
+  stats.forEach(([lab,val],i)=>{
+    const cx=56+(W-112)*(i+0.5)/4;
+    x.textAlign='center';
+    x.font='400 16px '+MONO;x.fillStyle='#5E6778';x.fillText(lab,cx,548);
+    x.font='600 30px '+MONO;x.fillStyle='#E8ECF4';x.fillText(val,cx,588);
+  });
+
+  dash(616);
+  x.textAlign='left';x.font='400 17px '+MONO;
+  const since=c.firstStakeEpoch!==null?'MARINATING SINCE EP. '+c.firstStakeEpoch:'NOT MARINATING YET';
+  x.fillStyle='#95F0C5';x.fillText(since+' · marinade.finance',56,650);
+  x.textAlign='right';x.fillStyle='#5E6778';x.fillText('solana.com/epoch1000',W-56,650);
+
+  cv.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='epoch1000-staker-card-'+(privateMode?'anon':short.replace('…','-'))+'.png';
+    a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  },'image/png');
+}
+$('png').addEventListener('click',downloadCard);
+$('privacy').addEventListener('click',()=>{
+  privateMode=!privateMode;
+  const b=$('privacy');
+  b.setAttribute('aria-pressed',privateMode);
+  b.textContent=privateMode?'👁 Show amounts':'🕶 Hide amounts';
+  if(current)applyCard(false);
+});
+$('mnde-toggle').addEventListener('change',()=>{
+  if(current)drawChart(current.series,current.card.firstStakeEpoch,current.current.epoch,$('mnde-toggle').checked);
+});
+
+/* ---------- checker flow ---------- */
+const B58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const SYNC_MSGS=['locating stake accounts…','replaying transaction history…','fetching per-epoch inflation rewards…','valuing LST positions…','composing the three timelines…'];
+let syncTimer=null;
+function setBusy(b){$('check').disabled=b;if(!b&&syncTimer){clearInterval(syncTimer);syncTimer=null;$('sync').style.display='none'}}
+function startSync(){
+  const sync=$('sync');sync.style.display='block';let i=0;
+  sync.textContent='SYNCING… '+SYNC_MSGS[0];
+  syncTimer=setInterval(()=>{i=(i+1)%SYNC_MSGS.length;sync.textContent='SYNCING… '+SYNC_MSGS[i]},2200);
+}
+async function check(addr,forceSim){
+  addr=(addr??$('addr').value).trim();
+  $('err').style.display='none';
+  if(!B58.test(addr)){$('err').textContent="That doesn't look like a Solana address (32–44 base58 characters).";$('err').style.display='block';return}
+  $('results').style.display='none';
+  setBusy(true);startSync();
+  try{
+    if(forceSim)throw {sim:true};
+    render(await window.buildReportLive(addr));
+  }catch(e){
+    if(e&&e.sim){render(mockReport(addr))}
+    else{
+      $('err').textContent='Live lookup failed ('+(e.message||e)+') — showing a simulated profile instead. Retry in a minute (public RPC limits).';
+      $('err').style.display='block';
+      render(mockReport(addr));
+    }
+  }finally{setBusy(false)}
+}
+$('check').addEventListener('click',()=>check());
+$('addr').addEventListener('keydown',e=>{if(e.key==='Enter')check()});
+for(const d of DEMOS){
+  const b=document.createElement('button');
+  b.className='chip';b.textContent=d.label;
+  b.addEventListener('click',()=>{$('addr').value=d.addr;check(d.addr,d.sim)});
+  $('chips').appendChild(b);
+}
+$('again').addEventListener('click',()=>{$('addr').value='';$('addr').focus();scrollTo({top:0,behavior:reduced?'auto':'smooth'})});
+$('copy').addEventListener('click',async e=>{
+  try{await navigator.clipboard.writeText(e.currentTarget.dataset.text||'');
+    e.currentTarget.textContent='✓ Copied';setTimeout(()=>$('copy').textContent='⧉ Copy my stats',1600)}catch(_){}
+});
+
+/* ---------- live epoch counter + progress bar ---------- */
+const EPOCH_SNAPSHOT=null; // artifact bake injects a captured getEpochInfo here
+const SLOT_MS=440;         // ~2.27 slots/s mainnet average
+let epochState=null;
+async function epochTick(){
+  if(EPOCH_SNAPSHOT){ // extrapolate from the captured snapshot, rolling epochs forward
+    let idx=EPOCH_SNAPSHOT.slotIndex+(Date.now()-EPOCH_SNAPSHOT.capturedAt)/SLOT_MS, ep=EPOCH_SNAPSHOT.epoch;
+    while(idx>=EPOCH_SNAPSHOT.slotsInEpoch){idx-=EPOCH_SNAPSHOT.slotsInEpoch;ep++}
+    epochState={epoch:ep,slotIndex:idx,slotsInEpoch:EPOCH_SNAPSHOT.slotsInEpoch,localT:Date.now()};
+    return;
+  }
+  try{
+    epochState={...await window.epochInfoLive(),localT:Date.now()};
+  }catch(_){/* keep last state */}
+}
+function epochRender(){
+  if(!epochState)return;
+  const idx=Math.min(epochState.slotsInEpoch-1,epochState.slotIndex+(Date.now()-epochState.localT)/SLOT_MS);
+  const pct=idx/epochState.slotsInEpoch*100;
+  $('ep-num').textContent=epochState.epoch.toLocaleString();
+  $('ep-pct').textContent=pct.toFixed(2)+'%';
+  $('ep-fill').style.width=pct.toFixed(2)+'%';
+  $('ep-slots').textContent='slot '+Math.floor(idx).toLocaleString()+' / '+epochState.slotsInEpoch.toLocaleString();
+  const etaMs=(epochState.slotsInEpoch-idx)*SLOT_MS, h=etaMs/3600000;
+  $('ep-eta').textContent='epoch '+(epochState.epoch+1).toLocaleString()+' in ~'+(h>=24?(h/24).toFixed(1)+' days':h>=1?h.toFixed(1)+' h':Math.ceil(etaMs/60000)+' min');
+}
+epochTick().then(epochRender);
+setInterval(epochRender,1000);
+if(!EPOCH_SNAPSHOT)setInterval(epochTick,60000);
+</script>
+</body>
+</html>
