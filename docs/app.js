@@ -330,7 +330,7 @@ async function buildReport(wallet) {
     }
   }
 
-  const rewardSamples = [];
+  const rewardSamples = []; // {epoch, span, perAcct[]} — perAcct aligned with activeStakes order
   if (!ledger && activeStakes.length) {
     const from = Math.max(1, Math.min(...activeStakes.map((s) => s.activationEpoch)) + 1);
     const step = Math.max(1, Math.ceil((nowEpoch - from) / REWARD_SAMPLE_CALLS));
@@ -340,8 +340,7 @@ async function buildReport(wallet) {
     await pool(epochs, REWARD_CONCURRENCY, async (e) => {
       try {
         const res = await rpc('getInflationReward', [addrs, { epoch: e }]);
-        const sol = res.reduce((t, r) => t + (r?.amount ?? 0), 0) / LAMPORTS;
-        rewardSamples.push({ epoch: e, perEpochSol: sol, span: Math.min(step, nowEpoch - e) });
+        rewardSamples.push({ epoch: e, span: Math.min(step, nowEpoch - e), perAcct: res.map((r) => (r?.amount ?? 0) / LAMPORTS) });
       } catch (err) {
         notes.push(`rewards sample @${e} failed: ${err.message}`);
       }
@@ -350,10 +349,11 @@ async function buildReport(wallet) {
     notes.push('rewards sampled on current stake accounts only — pre-merge/split lineage not traced'
       + (marinade?.status === 'Processing' ? ' (Marinade crawl in progress — recheck later for full lineage)' : ''));
   }
+  const cumRewAcct = (e, i) => rewardSamples.reduce((t, s) => (s.epoch <= e ? t + s.perAcct[i] * Math.min(s.span, e - s.epoch + 1) : t), 0);
   const cumRewAt = ledger
     ? (e) => ledger.at(e).rewards
-    : (e) => rewardSamples.reduce((t, s) => (s.epoch <= e ? t + s.perEpochSol * Math.min(s.span, e - s.epoch + 1) : t), 0);
-  const totalStakeRewards = ledger ? ledger.totalRewards : rewardSamples.reduce((t, s) => t + s.perEpochSol * s.span, 0);
+    : (e) => rewardSamples.reduce((t, s) => (s.epoch <= e ? t + s.perAcct.reduce((a, b) => a + b, 0) * Math.min(s.span, e - s.epoch + 1) : t), 0);
+  const totalStakeRewards = ledger ? ledger.totalRewards : cumRewAt(nowEpoch);
 
   // ── wallet SOL + LST balance timelines via parsed-tx replay ────────────────
   const balanceNow = (await rpc('getBalance', [wallet])).value / LAMPORTS;
@@ -417,9 +417,16 @@ async function buildReport(wallet) {
     while (gi > 0) { gi--; walletAt.set(grid[gi], sol); lstAt.set(grid[gi], { ...lst }); }
   }
 
+  // LSTs count as staking: first LST acquisition sets the first-stake epoch too
+  const firstLstEpoch = grid.find((e) => Object.values(lstAt.get(e) ?? {}).some((b) => b > 1e-6)) ?? null;
+  if (firstLstEpoch !== null) firstStakeEpoch = firstStakeEpoch === null ? firstLstEpoch : Math.min(firstStakeEpoch, firstLstEpoch);
+
   // ── compose series ─────────────────────────────────────────────────────────
-  const stakeAtSampled = (e) => Math.max(0, stakeNowSol - (totalStakeRewards - cumRewAt(e))
-    - activeStakes.filter((s) => s.activationEpoch > e).reduce((t, s) => t + s.lamports, 0) / LAMPORTS);
+  // Historical stake = per-account current balance minus that account's own post-e
+  // rewards; accounts not yet active at e contribute nothing. (Per-account netting —
+  // the aggregate version double-subtracted later accounts' rewards and inflated APY.)
+  const stakeAtSampled = (e) => Math.max(0, activeStakes.reduce((t, s, i) =>
+    s.activationEpoch <= e ? t + s.lamports / LAMPORTS - (cumRewAcct(nowEpoch, i) - cumRewAcct(e, i)) : t, 0));
   // Ledger stake balance = net flows + rewards, anchored to the on-chain balance now
   // (crawl lags the chain tip; the anchor absorbs post-crawl flows/rewards as a constant).
   let stakeAt = stakeAtSampled;
@@ -473,10 +480,13 @@ async function buildReport(wallet) {
       // time-varying benchmark: mSOL APY as it actually was at that point in history
       const g = Math.pow(1 + bench.perEpochAt(epochUnix(grid[i - 1])), grid[i] - grid[i - 1]) - 1;
       fullPot += (hold[i - 1] + fullPot) * g;
-      mndePot += Math.max(0, stakeAt(grid[i - 1]) - (cumRewAt(grid[i - 1]) - mndePot)) * g; // swap actual accrued rewards for the pot
+      // mnde pot accrues on the whole staked exposure — native stake + LST SOL-value —
+      // swapping the entire actual reward stream (native rewards + LST appreciation)
+      const actualRew = cumRewAt(grid[i - 1]) + lstApprCum[i - 1];
+      mndePot += Math.max(0, stakeAt(grid[i - 1]) + lstValueAt(grid[i - 1], true) - (actualRew - mndePot)) * g;
     }
     full.push(hold[i] + fullPot);
-    mnde.push(hold[i] + lstApprCum[i] + mndePot);
+    mnde.push(hold[i] + mndePot);
   }
 
   // sanity invariants — violations are surfaced, never silently shipped
@@ -491,8 +501,8 @@ async function buildReport(wallet) {
   const endYou = you[you.length - 1], endHold = hold[hold.length - 1], endFull = full[full.length - 1];
   const potential = fullPot;
   const stakedSpan = grid.filter((e) => e >= (firstStakeEpoch ?? startEpoch));
-  const avgStaked = stakedSpan.length
-    ? stakedSpan.reduce((t, e) => t + stakeAt(e) + lstValueAt(e, false), 0) / stakedSpan.length : 0;
+  const avgStaked = stakedSpan.length // LSTs at SOL value — same denomination as `earned`
+    ? stakedSpan.reduce((t, e) => t + stakeAt(e) + lstValueAt(e, true), 0) / stakedSpan.length : 0;
   const yearsSpan = (nowEpoch - (firstStakeEpoch ?? startEpoch)) / 160;
   const effApy = avgStaked > 0 && yearsSpan > 0.01 ? Math.pow(1 + earned / avgStaked, 1 / yearsSpan) - 1 : 0;
   // Total APY: same rewards, but relative to ALL SOL held (staked + idle) over the
@@ -519,11 +529,11 @@ async function buildReport(wallet) {
       totalApy: r4(totalApy),
       efficiency: potential > 0 ? r4(Math.min(1, Math.max(0, earned / potential))) : 0,
       missedSol: r4(Math.max(0, fullPot - earned)),      // rewards gap vs all-in-from-day-one
-      mndeRewardsSol: r4(mndePot),                       // what Marinade would have yielded on your staking history
-      mndeDeltaSol: r4(mndePot - totalStakeRewards),     // >0: Marinade beats your validators' rewards
+      mndeRewardsSol: r4(mndePot),                 // what Marinade would have yielded on your staked exposure (native + LST)
+      mndeDeltaSol: r4(mndePot - earned),          // >0: Marinade beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.5.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.7.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',

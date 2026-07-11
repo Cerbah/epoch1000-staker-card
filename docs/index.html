@@ -298,7 +298,7 @@
       </div>
       <div class="co mnde">
         <h3>🧑‍🍳 Let the rest marinate</h3>
-        <p><b id="co-missed">—</b> more SOL if 100% had been staked since your first epoch. <span id="co-mnde"></span>
+        <p><b id="co-missed">—</b> more SOL if 100% had been staked since the first epoch you held SOL. <span id="co-mnde"></span>
         Epoch 1001 starts now — stake it with <a href="https://marinade.finance" target="_blank" rel="noopener">Marinade</a>,
         liquid (mSOL) or native, and put every epoch to work.</p>
       </div>
@@ -476,7 +476,7 @@ function render(data){
   const notes=$('meta-notes');notes.innerHTML='';
   const ns=data.meta?.notes??[];
   $('how-box').style.display=ns.length?'':'none';
-  for(const n of ns)notes.insertAdjacentHTML('beforeend',`<li>· ${n}</li>`);
+  for(const n of ns){const li=document.createElement('li');li.textContent='· '+n;notes.appendChild(li)} // textContent: notes embed upstream error strings
 
   drawChart(s,c.firstStakeEpoch,E,$('mnde-toggle').checked);
   fillTable(s);
