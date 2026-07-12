@@ -534,24 +534,19 @@ async function buildReport(wallet) {
   for (let e = startEpoch; e <= nowEpoch; e += step) grid.push(e);
   if (grid[grid.length - 1] !== nowEpoch) grid.push(nowEpoch);
 
-  const walletAt = new Map();
-  let preWindowBal = balanceNow;
-  { // reconstruct point-in-time wallet SOL at each grid epoch (events newest → oldest)
-    let sol = balanceNow;
-    let gi = grid.length - 1;
+  // Point-in-time wallet SOL at each grid epoch. When the replay is COMPLETE, the backward
+  // delta walk is exact (it reaches ~0 at inception). When it's TRUNCATED, that walk would
+  // project today's balance back and invent a phantom early balance — so fall back to
+  // ABSOLUTE on-chain balances (last tx ≤ boundary), which can't phantom (mirrors LSTs).
+  let walletAt;
+  if (replayComplete) {
+    walletAt = new Map();
+    let sol = balanceNow, gi = grid.length - 1;
     walletAt.set(nowEpoch, sol);
-    for (const ev of events) {
-      while (gi > 0 && grid[gi - 1] >= ev.epoch) { gi--; walletAt.set(grid[gi], sol); }
-      sol -= ev.solDelta;
-    }
+    for (const ev of events) { while (gi > 0 && grid[gi - 1] >= ev.epoch) { gi--; walletAt.set(grid[gi], sol); } sol -= ev.solDelta; }
     while (gi > 0) { gi--; walletAt.set(grid[gi], sol); }
-    preWindowBal = sol;
-  }
-  // Native-SOL completeness note: a fully replayed history should walk back to ~0. SOL
-  // is the baseline (it can't be "excluded" like an LST), so an unreconciled residue is
-  // only surfaced as a caution — and only when the replay was complete enough to mean it.
-  if (replayComplete && Math.abs(preWindowBal) > 1) {
-    notes.push(`INTEGRITY: replaying the complete history back to inception leaves a ${preWindowBal.toFixed(2)} SOL residue (should be ~0) — some balance changes were not captured; treat reconstructed history with suspicion`);
+  } else {
+    walletAt = await nativeBalancesAt(okSigs, grid, nowEpoch, wallet, balanceNow);
   }
 
   // LST balance at each epoch boundary = the ABSOLUTE on-chain balance from the last tx
@@ -726,7 +721,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.17.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.18.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -747,6 +742,36 @@ async function pool(items, size, fn) {
   await Promise.all(Array.from({ length: Math.max(1, size) }, async () => {
     while (queue.length) await fn(queue.shift());
   }));
+}
+
+// Wallet native SOL at each grid epoch boundary, from the ABSOLUTE post-balance of the last
+// wallet tx ≤ boundary (meta.postBalances). No delta accumulation ⇒ a truncated/partial
+// replay can't invent a phantom early balance; pre-first-tx epochs are 0, gaps carry the
+// last known balance. nowEpoch is anchored to the exact current balance.
+async function nativeBalancesAt(okSigs, grid, nowEpoch, wallet, balanceNow) {
+  const at = new Map(grid.map((e) => [e, 0]));
+  at.set(nowEpoch, balanceNow);
+  const boundaries = grid.filter((e) => e !== nowEpoch).map((e) => ({ e, endSlot: (e + 1) * SLOTS_PER_EPOCH - 1 }));
+  const anchor = new Map();
+  for (const { e, endSlot } of boundaries) {
+    const s = okSigs.find((x) => x.slot <= endSlot); // newest→oldest ⇒ first ≤ endSlot is the latest ≤ boundary
+    if (s) anchor.set(e, s.signature);
+  }
+  const balBySig = new Map();
+  await pool([...new Set(anchor.values())], REWARD_CONCURRENCY, async (sig) => {
+    try {
+      const t = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 0, encoding: 'jsonParsed' }], { retries: 6 });
+      const keys = accountKeyList(t); const i = keys.indexOf(wallet);
+      balBySig.set(sig, i >= 0 && t?.meta?.postBalances ? t.meta.postBalances[i] / LAMPORTS : null);
+    } catch { balBySig.set(sig, null); }
+  });
+  let carry = 0; // before the first tx the wallet held 0; carry last-known across gaps/nulls
+  for (const e of grid) {
+    if (e === nowEpoch) continue;
+    if (anchor.has(e)) { const b = balBySig.get(anchor.get(e)); if (b != null) carry = b; }
+    at.set(e, carry);
+  }
+  return at;
 }
 
 // Point-in-time LST balances at each grid epoch's boundary (end of epoch), read from the
@@ -772,7 +797,7 @@ async function lstBalancesAt(ataData, grid, nowEpoch, wallet, lstNow) {
     const balBySig = new Map();
     await pool([...new Set(anchor.values())], REWARD_CONCURRENCY, async (sig) => {
       try {
-        const t = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 0, encoding: 'jsonParsed' }]);
+        const t = await rpc('getTransaction', [sig, { maxSupportedTransactionVersion: 0, encoding: 'jsonParsed' }], { retries: 6 });
         balBySig.set(sig, tokenBalanceOfAccount(t, pubkey));
       } catch { balBySig.set(sig, null); }
     });
@@ -810,7 +835,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v17:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v18:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -821,7 +846,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v17:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v18:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
