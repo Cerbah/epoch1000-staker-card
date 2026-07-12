@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Backfill exact historical per-LST SOL rates into lib/lst-rate-history.json (schema v2,
-// symbol-major) from DefiLlama daily USD prices: rate(e) = LST_usd(t_e) / SOL_usd(t_e).
-// Epoch→unix comes from sampled archival getBlockTime anchors (piecewise-linear). One-shot;
-// the cron (record-rates.js) extends it forward. Optional args = symbols to limit (testing).
+// symbol-major) from DefiLlama point-in-time prices: rate(e) = LST_usd(t_e) / SOL_usd(t_e).
+// Uses /prices/historical (broader coverage than /chart — includes JupSOL, BNSOL, …),
+// sampled every ~STEP epochs (batched across all mints) then linearly interpolated to
+// every epoch (LST rates are smooth). Epoch→unix via archival getBlockTime anchors.
+// One-shot/retroactive; record-rates.js extends it forward. Args = symbols to limit.
 import '../lib/bootstrap.js';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -13,7 +15,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'lib', 'lst-rate-history.json');
 const REG = JSON.parse(readFileSync(path.join(ROOT, 'lib', 'lst-mints.json'), 'utf8'));
 const WSOL = 'So11111111111111111111111111111111111111112';
-const SPE = 432_000, START_EPOCH = 200;
+const SPE = 432_000, START_EPOCH = 200, SAMPLES = 80;
 
 const only = process.argv.slice(2);
 const lsts = REG.filter((l) => !only.length || only.includes(l.symbol));
@@ -37,48 +39,47 @@ const epochToUnix = (e) => {
   return a.t + (e - a.e) * (b.t - a.t) / (b.e - a.e);
 };
 
-// DefiLlama daily USD prices, chunked (max 500 points/request), ascending
-async function dailyUsd(mint) {
-  const out = []; let start = 1640995200; // 2022-01-01
-  const now = Date.now() / 1000;
-  for (let g = 0; g < 40; g++) {
-    const j = await fetch(`https://coins.llama.fi/chart/solana:${mint}?start=${start}&span=500&period=1d`).then((r) => r.ok ? r.json() : null).catch(() => null);
-    const ps = j?.coins?.[`solana:${mint}`]?.prices;
-    if (!ps?.length) break;
-    for (const p of ps) if (!out.length || p.timestamp > out[out.length - 1].timestamp) out.push(p);
-    const last = ps[ps.length - 1].timestamp;
-    if (last >= now - 2 * 86400) break;            // reached ~today
-    start = last > start ? last + 86400 : start + 400 * 86400; // advance (jump if stalled)
-  }
-  return out;
-}
-const priceAt = (s, ts) => {
-  if (!s.length || ts < s[0].timestamp - 3 * 86400) return null;
-  if (ts >= s[s.length - 1].timestamp) return s[s.length - 1].price;
-  let lo = 0, hi = s.length - 1;
-  while (lo < hi - 1) { const m = (lo + hi) >> 1; if (s[m].timestamp <= ts) lo = m; else hi = m; }
-  return s[lo].price;
-};
+// sample epochs across history
+const step = Math.max(1, Math.round((nowEpoch - START_EPOCH) / SAMPLES));
+const sampleEpochs = []; for (let e = START_EPOCH; e < nowEpoch; e += step) sampleEpochs.push(e); sampleEpochs.push(nowEpoch);
 
-const sol = await dailyUsd(WSOL);
-if (sol.length < 10) throw new Error('DefiLlama SOL price series unavailable');
+// mint chunks (batch many mints per /prices/historical call; wSOL in every chunk)
+const chunks = [];
+const mints = lsts.map((l) => l.mint);
+for (let i = 0; i < mints.length; i += 24) chunks.push([WSOL, ...mints.slice(i, i + 24)]);
+
+const sampleRates = {}; for (const l of lsts) sampleRates[l.symbol] = []; // sym → [{e, rate}]
+const symOf = new Map(lsts.map((l) => [l.mint, l.symbol]));
+for (const e of sampleEpochs) {
+  const ts = Math.round(epochToUnix(e));
+  const priceByMint = {};
+  const parts = await Promise.all(chunks.map((chunk) =>
+    fetch(`https://coins.llama.fi/prices/historical/${ts}/${chunk.map((m) => 'solana:' + m).join(',')}`)
+      .then((r) => r.ok ? r.json() : null).catch(() => null)));
+  for (const p of parts) for (const [k, v] of Object.entries(p?.coins || {})) priceByMint[k.replace('solana:', '')] = v.price;
+  const sol = priceByMint[WSOL];
+  if (!(sol > 0)) { process.stderr.write('x'); continue; }
+  for (const l of lsts) { const pr = priceByMint[l.mint]; if (pr > 0) { const rate = pr / sol; if (rate > 0.9 && rate < 6) sampleRates[l.symbol].push({ e, rate }); } }
+  process.stderr.write('.');
+}
+process.stderr.write('\n');
+
+// interpolate samples → every epoch
 const hist = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
 const rates = hist.schemaVersion === 2 && hist.rates ? hist.rates : {};
-
+let covered = 0;
 for (const l of lsts) {
-  const series = await dailyUsd(l.mint);
-  if (!series.length) { console.error('  no DefiLlama data:', l.symbol); continue; }
-  const firstTs = series[0].timestamp;
+  const s = sampleRates[l.symbol].sort((a, b) => a.e - b.e);
+  if (s.length < 2) { console.error(`  insufficient DefiLlama data: ${l.symbol} (${s.length} samples)`); continue; }
   const m = rates[l.symbol] || (rates[l.symbol] = {});
-  let filled = 0;
-  for (let e = START_EPOCH; e <= nowEpoch; e++) {
-    const ts = epochToUnix(e);
-    if (ts < firstTs - 3 * 86400) continue;
-    const lp = priceAt(series, ts), sp = priceAt(sol, ts);
-    if (lp && sp > 0) { const r = lp / sp; if (r > 0.9 && r < 6) { m[String(e)] = Math.round(r * 1e6) / 1e6; filled++; } }
+  for (let e = s[0].e; e <= nowEpoch; e++) {
+    let i = 0; while (i < s.length - 1 && s[i + 1].e <= e) i++;
+    const rate = e <= s[0].e ? s[0].rate : e >= s[s.length - 1].e ? s[s.length - 1].rate
+      : s[i].rate + (s[i + 1].rate - s[i].rate) * (e - s[i].e) / (s[i + 1].e - s[i].e);
+    m[String(e)] = Math.round(rate * 1e6) / 1e6;
   }
-  console.error(`  ${l.symbol}: ${filled} epochs (from ~epoch ${Math.max(START_EPOCH, Object.keys(m).map(Number).sort((a, b) => a - b)[0] || nowEpoch)})`);
+  covered++;
+  console.error(`  ${l.symbol}: ${s.length} samples → epochs ${s[0].e}..${nowEpoch}`);
 }
-
-writeFileSync(FILE, JSON.stringify({ schemaVersion: 2, note: 'per-LST exact SOL/token rate by epoch — backfilled from DefiLlama (rate = LST_usd / SOL_usd); extended forward once/epoch by record-rates.js', rates }) + '\n');
-console.log(`backfilled ${lsts.length} LST(s); history now covers ${Object.keys(rates).length} symbols`);
+writeFileSync(FILE, JSON.stringify({ schemaVersion: 2, note: 'per-LST exact SOL/token rate by epoch — backfilled from DefiLlama historical prices (rate = LST_usd / SOL_usd, sampled+interpolated); extended forward once/epoch by record-rates.js', rates }) + '\n');
+console.log(`backfilled ${covered}/${lsts.length} LSTs; history covers ${Object.keys(rates).length} symbols`);
