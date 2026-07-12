@@ -614,6 +614,10 @@ async function buildReport(wallet) {
   // it never erases rewards already earned. So "you" always ends at baseline + earned,
   // matching the card, even when the wallet moved funds out.
   const balTraj = grid.map((e) => Math.max(0, (walletAt.get(e) ?? 0)) + stakeAt(e) + lstValueAt(e, true));
+  // per-epoch staked exposure (native stake + LST SOL-value) vs idle wallet SOL → % staked
+  const stakedSeries = grid.map((e) => stakeAt(e) + lstValueAt(e, true));
+  const idleSeries = grid.map((e) => Math.max(0, walletAt.get(e) ?? 0));
+  const stakedPct = grid.map((_, i) => { const tot = stakedSeries[i] + idleSeries[i]; return tot > 1e-6 ? stakedSeries[i] / tot : 0; });
   const hold = balTraj.map((b, i) => Math.max(0, b - cumRewAt(grid[i]) - lstApprCum[i]));
   const you = hold.map((h, i) => h + Math.max(0, cumRewAt(grid[i])) + lstApprCum[i]);
 
@@ -681,7 +685,7 @@ async function buildReport(wallet) {
     wallet,
     generatedAt: new Date().toISOString(),
     current: { epoch: nowEpoch },
-    series: { eps: grid, hold: rnd(hold), you: rnd(you), full: rnd(full), mnde: rnd(mnde) },
+    series: { eps: grid, hold: rnd(hold), you: rnd(you), full: rnd(full), mnde: rnd(mnde), stakedPct: rnd(stakedPct), stakedSol: rnd(stakedSeries), idleSol: rnd(idleSeries) },
     card: {
       earnedSol: r4(earned),
       stakedSol: r4(stakeNowSol + lstValueAt(nowEpoch, true)),
