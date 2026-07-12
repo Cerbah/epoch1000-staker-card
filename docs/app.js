@@ -671,14 +671,20 @@ async function buildReport(wallet) {
   // an earned/avg-stake formula badly overstates yield when the stake grew over time.
   //   effApy:  reward rate on the staked exposure (native + LST SOL-value)
   //   totalApy: same rewards on ALL SOL held — ≤ effApy by construction (idle dilutes)
+  // Cap the per-step reward RATE: a real staking step yields well under 5% of the staked
+  // exposure. A larger ratio means the reward was attributed to a near-zero exposure (an
+  // idle/exit step, common when history is truncated) — a reconstruction artifact, not real
+  // yield. Skipping those keeps the geometric APY from exploding (e.g. a phantom 54% APY).
+  const MAX_STEP_RATE = 0.05;
   let gStaked = 1, gTotal = 1;
   for (let i = 1; i < grid.length; i++) {
     const dRew = (cumRewAt(grid[i]) + lstApprCum[i]) - (cumRewAt(grid[i - 1]) + lstApprCum[i - 1]);
     if (dRew <= 0) continue;
     const expS = (stakeAt(grid[i - 1]) + lstValueAt(grid[i - 1], true)) || (stakeAt(grid[i]) + lstValueAt(grid[i], true));
     const expT = balTraj[i - 1] || balTraj[i];
-    if (expS > 1e-6) gStaked *= 1 + dRew / expS;
-    if (expT > 1e-6) gTotal *= 1 + dRew / expT;
+    const rS = expS > 1e-6 ? dRew / expS : 0, rT = expT > 1e-6 ? dRew / expT : 0;
+    if (rS > 0 && rS < MAX_STEP_RATE) gStaked *= 1 + rS;
+    if (rT > 0 && rT < MAX_STEP_RATE) gTotal *= 1 + rT;
   }
   const yearsSpan = (nowEpoch - (firstStakeEpoch ?? startEpoch)) / 160;
   const firstHeld = grid.find((e, i) => balTraj[i] > 1e-6);
@@ -712,7 +718,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.15.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.16.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -796,7 +802,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v15:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v16:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -807,7 +813,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v15:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v16:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
