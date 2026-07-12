@@ -46,8 +46,11 @@ assert "readFileSync" not in lst and "ensureRegistry" in lst
 bench = strip_module(load("benchmark.js"))
 mar = strip_module(load("marinade.js"))
 pipe = strip_module(load("pipeline.js"))
-for var in ["MAX_SIG_PAGES", "MAX_ENHANCED_TX", "MAX_LST_SIG_PAGES", "REWARD_SAMPLE_CALLS", "REWARD_CONCURRENCY"]:
-    pipe = re.sub(r"Number\(process\.env\.%s \?\? (\d+)\)" % var, r"\1", pipe)
+# Browser build runs in the visitor's tab on a shared public key — use conservative caps
+# (not the paid-plan server defaults) so a busy wallet can't hang phones or 429-storm.
+BROWSER_CAPS = {"MAX_SIG_PAGES": 5, "MAX_ENHANCED_TX": 1500, "MAX_LST_SIG_PAGES": 22, "REWARD_SAMPLE_CALLS": 22, "REWARD_CONCURRENCY": 2}
+for var, cap in BROWSER_CAPS.items():
+    pipe = re.sub(r"Number\(process\.env\.%s \?\? \d+\)" % var, str(cap), pipe)
 # marinade.js already declares these at what becomes shared scope
 pipe = pipe.replace("const SLOTS_PER_EPOCH = 432_000;\n", "").replace("const LAMPORTS = 1e9;\n", "")
 assert "process.env" not in pipe and "process.env" not in lst
@@ -64,12 +67,18 @@ wrapper = """
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v14:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v15:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
-  const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v14:' + wallet, JSON.stringify(r)); } catch (_) {}
+  // overall timeout: an extremely active wallet can still run long in-browser — surface a
+  // clear message rather than hanging the tab forever (fetches already retry+back off).
+  const TIMEOUT_MS = 90000;
+  const r = await Promise.race([
+    buildReport(wallet),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
+  ]);
+  try { localStorage.setItem('e1k:v15:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');

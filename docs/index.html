@@ -123,6 +123,9 @@
   .ghost.subtle:hover{color:var(--ink2);border-color:transparent}
   .ghost[aria-pressed="true"]{border-color:var(--mnde);color:var(--mnde)}
   .salt{font-size:12.5px;color:var(--ink3);margin:12px 0 0}
+  body.private #chart,body.private #chart2,body.private #dataTable,body.private #tip,body.private #co-earned,body.private #co-missed,body.private #co-mnde{filter:blur(7px);-webkit-user-select:none;user-select:none}
+  .warn-banner{display:none;background:#2a1e10;border:1px solid #7a5a2a;color:#f0c674;border-radius:8px;padding:10px 14px;margin:12px 0 0;font-size:13px;line-height:1.5}
+  .sim-warn{display:none;background:#241a33;border:1px solid #6b4c9a;color:#c9a9ff;border-radius:8px;padding:10px 14px;margin:12px 0 0;font-size:13px;font-weight:600}
 
   .chart-sect{margin-top:64px}
   .chart-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 22px 14px;position:relative}
@@ -226,6 +229,8 @@
 
 <div class="wrap" id="results" aria-live="polite">
   <p class="sect-label">// Your staker card <span class="badge" id="badge"></span></p>
+  <p class="sim-warn" id="sim-warn">⚠ SIMULATED — illustrative numbers, not real on-chain data. Sharing is disabled.</p>
+  <div class="warn-banner" id="warn-banner"></div>
 
   <div class="card" id="card">
     <div class="card-top">
@@ -306,7 +311,7 @@
       </div>
       <div class="co mnde">
         <h3>🧑‍🍳 Let the rest marinate</h3>
-        <p><b id="co-missed">—</b> more SOL if 100% had been staked since the first epoch you held SOL. <span id="co-mnde"></span>
+        <p><b id="co-missed">—</b> more SOL if the SOL you staked had earned the mSOL benchmark rate. <span id="co-mnde"></span>
         Epoch 1001 starts now — stake it with <a href="https://marinade.finance" target="_blank" rel="noopener">Marinade</a>,
         liquid (mSOL) or native, and put every epoch to work.</p>
       </div>
@@ -402,8 +407,8 @@ function mockReport(addr,o={}){
       firstStakeEpoch:staked?stakeStart:null,
       epochsStaked:staked?E-stakeStart:0,effApy:staked?apy:0,
       totalApy:Math.pow(1+earned/holdings,160/Math.max(1,E-holdStart))-1,
-      efficiency:fullPot>0?Math.min(1,earned/fullPot):0,
-      missedSol:Math.max(0,fullPot-earned),mndeRewardsSol:mndePot,mndeDeltaSol:mndePot-earned},
+      captureVsMsol:mndePot>0?earned/mndePot:0,flowThrough:false,benchmark:'mSOL',
+      missedSol:Math.max(0,mndePot-earned),allInPotentialSol:fullPot,mndeRewardsSol:mndePot,mndeDeltaSol:mndePot-earned},
     meta:{notes:['simulated profile — illustrative parameters, not a real wallet']}};
 }
 
@@ -419,7 +424,7 @@ function grade(eff){
 
 let privateMode=false;
 function applyCard(animate){
-  const {card:c,gm,beat,short}=current;
+  const {card:c,gm,short}=current;
   const avg=c.avgStakedSol!==undefined?c.avgStakedSol:c.holdingsSol-c.earnedSol;
   const growth=avg>0?c.earnedSol/avg*100:0;
   $('c-wallet').textContent=privateMode?'🕶 anonymous staker':short;
@@ -427,13 +432,13 @@ function applyCard(animate){
     $('c-hero-label').textContent='Staking growth';
     $('c-earned').textContent='+'+fmt(growth,1);
     $('c-earned-unit').textContent='%';
-    $('c-sub').innerHTML=`Earned while you slept. You out-earned <span class="pct">${beat}%</span> of non-staking wallets.`;
+    $('c-sub').innerHTML='Earned while you slept.';
     $('c-staked').textContent='🕶';
   }else{
     $('c-hero-label').textContent='Staking rewards earned';
     $('c-earned-unit').textContent='SOL';
     if(animate)countUp($('c-earned'),c.earnedSol);else $('c-earned').textContent=fmt(c.earnedSol);
-    $('c-sub').innerHTML=`That's a <span class="pct">+${fmt(growth,1)}%</span> return on your average stake — earned while you slept. You out-earned <span class="pct">${beat}%</span> of non-staking wallets.`;
+    $('c-sub').innerHTML=`That's a <span class="pct">+${fmt(growth,1)}%</span> return on your average stake — earned while you slept.`;
     $('c-staked').textContent=fmt(c.stakedSol,c.stakedSol>100?0:2);
   }
   const text=privateMode
@@ -445,20 +450,30 @@ function applyCard(animate){
 
 function render(data){
   const {card:c,series:s}=data, E=data.current.epoch;
-  const [gm,gn,gnote]=grade(c.efficiency);
-  const beat=Math.min(99,Math.round(55+c.efficiency*44));
+  const cap=c.captureVsMsol!==undefined?c.captureVsMsol:c.efficiency, graded=cap!=null;
+  const [gm,gn,gnote]=graded?grade(Math.min(1,cap)):['—','Flow-through',"Flow-through wallet — performance metrics don't apply."];
   const short=data.wallet.slice(0,4)+'…'+data.wallet.slice(-4);
-  current={...data,gm,gn,beat,short};
+  current={...data,gm,gn,short};
 
   const badge=$('badge');
   const custodial=data.meta&&data.meta.custodial;
   badge.className='badge '+(data.simulated?'sim':custodial?'sim':'live');
   badge.textContent=data.simulated?'SIMULATED':custodial?'CUSTODIAL PATTERN — INTERPRET WITH CARE':(data.captured?'LIVE ON-CHAIN · CAPTURED '+data.captured:'LIVE ON-CHAIN DATA');
 
+  // simulated → warn loudly and disable sharing so fabricated numbers can't escape
+  const sim=!!data.simulated;
+  $('sim-warn').style.display=sim?'block':'none';
+  for(const id of ['tweet','png','copy']){const b=$(id);b.style.opacity=sim?'.35':'';b.style.pointerEvents=sim?'none':'';b.setAttribute('aria-disabled',String(sim));}
+  // surface integrity/invariant/truncation warnings inline (not buried in a collapsed section)
+  const warns=((data.meta&&data.meta.notes)||[]).filter(n=>/INTEGRITY|INVARIANT|truncated|could not be fully replayed/i.test(n));
+  const wb=$('warn-banner');wb.textContent='';
+  if(warns.length){wb.style.display='block';warns.forEach(w=>{const d=document.createElement('div');d.textContent='⚠ '+w;wb.appendChild(d);});}
+  else wb.style.display='none';
+
   applyCard(true);
   $('c-grade').textContent=gm;
   $('c-grade-name').textContent=gn;
-  $('c-eff').textContent=gnote+' Efficiency: '+Math.round(c.efficiency*100)+'%.';
+  $('c-eff').textContent=graded?gnote+' Captured '+Math.round(cap*100)+'% of the mSOL benchmark on your staked SOL.':gnote;
   $('c-first').textContent=c.firstStakeEpoch!==null?'ep. '+c.firstStakeEpoch:'never';
   $('c-epochs').textContent=c.epochsStaked.toLocaleString();
   $('c-eptotal').textContent='/ '+E.toLocaleString();
@@ -467,7 +482,7 @@ function render(data){
   $('c-foot-left').textContent=c.firstStakeEpoch!==null?`Marinating since ep. ${c.firstStakeEpoch} 🧑‍🍳`:'Not marinating yet 🧑‍🍳';
   $('co-earned').textContent=fmt(c.earnedSol);
   $('co-since').textContent=c.firstStakeEpoch!==null?` since epoch ${c.firstStakeEpoch}`:'';
-  $('co-missed').textContent=fmt(c.missedSol);
+  $('co-missed').textContent=c.missedSol==null?'—':fmt(c.missedSol);
   const md=c.mndeDeltaSol, mr=c.mndeRewardsSol;
   const neverStaked=c.firstStakeEpoch===null&&!(mr>0);
   $('co-mnde').textContent=mr===undefined?'':(neverStaked
@@ -625,7 +640,7 @@ function measure(x,str,font){const f=x.font;x.font=font;const w=x.measureText(st
 function rr(x,rx,ry,rw,rh,r){x.beginPath();if(x.roundRect)x.roundRect(rx,ry,Math.max(rw,0.01),rh,r);else x.rect(rx,ry,Math.max(rw,0.01),rh);x.fill()}
 function downloadCard(){
   if(!current)return;
-  const {card:c,series:s,gm,gn,beat,short}=current,E=current.current.epoch;
+  const {card:c,series:s,gm,gn,short}=current,E=current.current.epoch;
   const W=1200,H=675,cv=document.createElement('canvas');
   cv.width=W;cv.height=H;const x=cv.getContext('2d');
   x.fillStyle='#0B0E14';x.fillRect(0,0,W,H);
@@ -660,8 +675,8 @@ function downloadCard(){
   }
   x.font='400 24px '+MONO;x.fillStyle='#9AA3B5';
   x.fillText(privateMode
-    ?`out-earned ${beat}% of non-staking wallets · earned while sleeping`
-    :`+${fmt(growth,1)}% on your average stake · out-earned ${beat}% of non-stakers`,56,352);
+    ?`+${fmt(growth,1)}% on your average stake · earned while sleeping`
+    :`+${fmt(growth,1)}% on your average stake · ${fmt(c.effApy*100,2)}% APY`,56,352);
 
   x.textAlign='center';
   x.font='700 130px '+MONO;x.fillStyle='#B07CFF';x.fillText(gm,W-190,300);
@@ -684,7 +699,7 @@ function downloadCard(){
   }
 
   dash(500);
-  const stats=[privateMode?['OUT-EARNED',beat+'% of wallets']:['SOL STAKED',fmt(c.stakedSol,c.stakedSol>100?0:2)],
+  const stats=[privateMode?['STAKING APY',fmt(c.effApy*100,2)+'%']:['SOL STAKED',fmt(c.stakedSol,c.stakedSol>100?0:2)],
                ['FIRST STAKED',c.firstStakeEpoch!==null?'ep. '+c.firstStakeEpoch:'never'],
                ['EPOCHS STAKED',c.epochsStaked+' / '+E],
                ['APY STAKED / TOTAL',fmt(c.effApy*100,2)+'% / '+fmt((c.totalApy??c.effApy)*100,2)+'%']];
@@ -714,6 +729,7 @@ $('privacy').addEventListener('click',()=>{
   const b=$('privacy');
   b.setAttribute('aria-pressed',privateMode);
   b.textContent=privateMode?'👁 Show amounts':'🕶 Hide amounts';
+  document.body.classList.toggle('private',privateMode);
   if(current)applyCard(false);
 });
 $('mnde-toggle').addEventListener('change',()=>{
@@ -726,9 +742,10 @@ const SYNC_MSGS=['locating stake accounts…','replaying transaction history…'
 let syncTimer=null;
 function setBusy(b){$('check').disabled=b;if(!b&&syncTimer){clearInterval(syncTimer);syncTimer=null;$('sync').style.display='none'}}
 function startSync(){
-  const sync=$('sync');sync.style.display='block';let i=0;
-  sync.textContent='SYNCING… '+SYNC_MSGS[0];
-  syncTimer=setInterval(()=>{i=(i+1)%SYNC_MSGS.length;sync.textContent='SYNCING… '+SYNC_MSGS[i]},2200);
+  const sync=$('sync');sync.style.display='block';let i=0;const t0=Date.now();
+  const tick=()=>{const s=Math.round((Date.now()-t0)/1000);sync.textContent='SYNCING… '+SYNC_MSGS[i]+(s>6?` · ${s}s`:'')+(s>20?' — active wallets can take up to a minute':'');};
+  tick();
+  syncTimer=setInterval(()=>{i=(i+1)%SYNC_MSGS.length;tick()},2000);
 }
 async function check(addr,forceSim,simParams){
   addr=(addr??$('addr').value).trim();

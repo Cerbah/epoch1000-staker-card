@@ -300,11 +300,11 @@ const num = (v) => (v === undefined || v === null ? 0 : Number(v) / LAMPORTS);
 const STAKE_PROGRAM = 'Stake11111111111111111111111111111111111111';
 // Depth budgets — sized to replay MOST wallets to inception on a paid Helius plan
 // ("right first time"); only true monsters get truncated, loudly.
-const MAX_SIG_PAGES = 20;          // ×1000 sigs history cap
-const MAX_ENHANCED_TX = 20000;   // parsed-tx replay budget
-const MAX_LST_SIG_PAGES = 80;  // ×1000 per-ATA sig cap (listing only, cheap)
-const REWARD_SAMPLE_CALLS = 40;
-const REWARD_CONCURRENCY = 8; // parallel getInflationReward calls
+const MAX_SIG_PAGES = 5;          // ×1000 sigs history cap
+const MAX_ENHANCED_TX = 1500;   // parsed-tx replay budget
+const MAX_LST_SIG_PAGES = 22;  // ×1000 per-ATA sig cap (listing only, cheap)
+const REWARD_SAMPLE_CALLS = 22;
+const REWARD_CONCURRENCY = 2; // parallel getInflationReward calls
 
 async function buildReport(wallet) {
   const notes = [];
@@ -661,7 +661,9 @@ async function buildReport(wallet) {
   }
 
   const earned = totalStakeRewards + lstApprCum[lstApprCum.length - 1];
-  const potential = fullPot;
+  // flow-through wallets (custodial, or moved out more than their reward-free balance) —
+  // performance metrics are meaningless for them; the UI shows a caveat instead of a grade.
+  const flowThrough = custodial || (hold[hold.length - 1] < 1e-6 && you[you.length - 1] > 1);
   const stakedSpan = grid.filter((e) => e >= (firstStakeEpoch ?? startEpoch));
   const avgStaked = stakedSpan.length // LSTs at SOL value — same denomination as `earned`
     ? stakedSpan.reduce((t, e) => t + stakeAt(e) + lstValueAt(e, true), 0) / stakedSpan.length : 0;
@@ -698,13 +700,19 @@ async function buildReport(wallet) {
       epochsStaked: firstStakeEpoch !== null ? nowEpoch - firstStakeEpoch : 0,
       effApy: r4(effApy),
       totalApy: r4(totalApy),
-      efficiency: potential > 0 ? r4(Math.min(1, Math.max(0, earned / potential))) : 0,
-      missedSol: r4(Math.max(0, fullPot - earned)),      // rewards gap vs all-in-from-day-one
-      mndeRewardsSol: r4(mndePot),                 // what Marinade would have yielded on your staked exposure (native + LST)
-      mndeDeltaSol: r4(mndePot - earned),          // >0: Marinade beats your actual reward stream
+      // "capture" = your rewards vs the mSOL benchmark ON THE SOL YOU ACTUALLY STAKED
+      // (not on idle cash / not "all-in from day one"). Unclamped: >1 means you beat mSOL
+      // (e.g. a higher-yield LST). null for flow-through wallets where it's meaningless.
+      benchmark: 'mSOL',
+      flowThrough,
+      captureVsMsol: flowThrough || mndePot <= 1e-6 ? null : r4(earned / mndePot),
+      missedSol: flowThrough ? null : r4(Math.max(0, mndePot - earned)), // mSOL yield left on the table on YOUR staked exposure
+      allInPotentialSol: r4(fullPot),              // aspirational "all-in mSOL from day one on all holdings" (chart line only)
+      mndeRewardsSol: r4(mndePot),                 // what mSOL would have yielded on your staked exposure (native + LST)
+      mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.14.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.15.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -788,12 +796,18 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v14:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v15:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
-  const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v14:' + wallet, JSON.stringify(r)); } catch (_) {}
+  // overall timeout: an extremely active wallet can still run long in-browser — surface a
+  // clear message rather than hanging the tab forever (fetches already retry+back off).
+  const TIMEOUT_MS = 90000;
+  const r = await Promise.race([
+    buildReport(wallet),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
+  ]);
+  try { localStorage.setItem('e1k:v15:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
