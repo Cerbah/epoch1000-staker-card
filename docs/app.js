@@ -621,6 +621,14 @@ async function buildReport(wallet) {
   const stakedSeries = grid.map((e) => stakeAt(e) + lstValueAt(e, true));
   const idleSeries = grid.map((e) => Math.max(0, walletAt.get(e) ?? 0));
   const stakedPct = grid.map((_, i) => { const tot = stakedSeries[i] + idleSeries[i]; return tot > 1e-6 ? stakedSeries[i] / tot : 0; });
+  // "First staked" = first epoch with MEANINGFUL staked exposure, not a dust deposit or an
+  // early-activating acquired account. Otherwise the card + chart marker claim "staked since
+  // <year>" (e.g. 2021) while the balance was ~0 until much later. Re-anchor to real onset.
+  {
+    const maxStk = Math.max(0, ...stakedSeries);
+    const mi = maxStk > 0 ? stakedSeries.findIndex((v) => v >= Math.max(1, 0.02 * maxStk)) : -1;
+    if (mi >= 0) firstStakeEpoch = firstStakeEpoch === null ? grid[mi] : Math.max(firstStakeEpoch, grid[mi]);
+  }
   const hold = balTraj.map((b, i) => Math.max(0, b - cumRewAt(grid[i]) - lstApprCum[i]));
   const you = hold.map((h, i) => h + Math.max(0, cumRewAt(grid[i])) + lstApprCum[i]);
 
@@ -718,7 +726,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.16.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.17.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -802,7 +810,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v16:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v17:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -813,7 +821,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v16:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v17:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
