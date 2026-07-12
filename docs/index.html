@@ -521,6 +521,9 @@ function countUp(el,target){
 const NS='http://www.w3.org/2000/svg';
 function el(tag,attrs){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);return n}
 let chartGeom=null;
+const EPOCH_ANCHORS=[[132, 1608775090], [144, 1611516699], [156, 1614702379], [168, 1617780661], [180, 1620670757], [192, 1623760155], [204, 1626968598], [216, 1629912204], [228, 1632687931], [240, 1635284456], [252, 1637971656], [264, 1640892879], [276, 1643942192], [288, 1646979780], [300, 1649880829], [312, 1653222396], [324, 1656799704], [336, 1659990094], [348, 1662988516], [360, 1665867772], [372, 1668291796], [384, 1670608185], [396, 1672991905], [408, 1675645877], [420, 1678275687], [432, 1680674630], [444, 1683078370], [456, 1685536335], [468, 1687946238], [480, 1690258996], [492, 1692529281], [504, 1694789828], [516, 1697002489], [528, 1699165783], [540, 1701405115], [552, 1703744689], [564, 1706031022], [576, 1708214181], [588, 1710376054], [600, 1712672249], [612, 1715085038], [624, 1717389135], [636, 1719695104], [648, 1722069634], [660, 1724318970], [672, 1726559060], [684, 1728870457], [696, 1731288398], [708, 1733526126], [720, 1735672630], [732, 1737787722], [744, 1739857364], [756, 1741911700], [768, 1743983714], [780, 1746041006], [792, 1748089032], [804, 1750140035], [816, 1752205963], [828, 1754263359], [840, 1756308396], [852, 1758366005], [864, 1760418822], [876, 1762485928], [888, 1764538165], [900, 1766560919], [912, 1768607259], [924, 1770665556], [936, 1772703878], [948, 1774743123], [960, 1776785595], [972, 1778848467], [984, 1780912633], [996, 1782981296], [1001, 1783858931]];
+function epochDate(ep){var a=EPOCH_ANCHORS;if(!a||!a.length)return 'ep. '+ep;var lo=a[0],hi=a[a.length-1];if(ep<=lo[0])hi=a[1]||lo;else if(ep>=hi[0])lo=a[a.length-2]||hi;else{for(var i=1;i<a.length;i++){if(ep<=a[i][0]){lo=a[i-1];hi=a[i];break}}}var t=lo[1]+(ep-lo[0])*(hi[1]-lo[1])/((hi[0]-lo[0])||1);var d=new Date(t*1000);return d.toLocaleString('en-US',{month:'short'})+" '"+String(d.getFullYear()).slice(2)}
+
 function drawChart(s,stakeStart,E,showMnde){
   const svg=$('chart');svg.innerHTML='';
   const W=800,H=360,M={t:16,r:150,b:34,l:56};
@@ -540,12 +543,12 @@ function drawChart(s,stakeStart,E,showMnde){
   }
   for(const e of [x0,Math.round((x0+x1)/2),x1]){
     const t=el('text',{x:X(e),y:H-10,'text-anchor':'middle',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});
-    t.textContent='ep. '+e;svg.appendChild(t);
+    t.textContent=epochDate(e);svg.appendChild(t);
   }
   if(stakeStart!==null&&stakeStart>x0){
     svg.appendChild(el('line',{x1:X(stakeStart),x2:X(stakeStart),y1:M.t,y2:M.t+ih,stroke:'#2A3247','stroke-width':1,'stroke-dasharray':'3 4'}));
     const t=el('text',{x:X(stakeStart)+5,y:M.t+12,fill:'#5E6778','font-size':10,'font-family':'ui-monospace,Menlo,monospace'});
-    t.textContent='you staked';svg.appendChild(t);
+    t.textContent='staked '+epochDate(stakeStart);svg.appendChild(t);
   }
 
   const css=getComputedStyle(document.documentElement);
@@ -587,7 +590,7 @@ function drawStakedChart(s,stakeStart,E){
   for(let i=0;i<=4;i++){const y=Y(i/4);
     svg.appendChild(el('line',{x1:M.l,x2:W-M.r,y1:y,y2:y,stroke:'#1E2534','stroke-width':1}));
     const t=el('text',{x:M.l-8,y:y+4,'text-anchor':'end',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});t.textContent=(i*25)+'%';svg.appendChild(t);}
-  for(const e of [x0,Math.round((x0+x1)/2),x1]){const t=el('text',{x:X(e),y:H-10,'text-anchor':'middle',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});t.textContent='ep. '+e;svg.appendChild(t);}
+  for(const e of [x0,Math.round((x0+x1)/2),x1]){const t=el('text',{x:X(e),y:H-10,'text-anchor':'middle',fill:'#5E6778','font-size':11,'font-family':'ui-monospace,Menlo,monospace'});t.textContent=epochDate(e);svg.appendChild(t);}
   if(stakeStart!==null&&stakeStart>x0)svg.appendChild(el('line',{x1:X(stakeStart),x2:X(stakeStart),y1:M.t,y2:M.t+ih,stroke:'#2A3247','stroke-width':1,'stroke-dasharray':'3 4'}));
   const col=getComputedStyle(document.documentElement).getPropertyValue('--s-you').trim()||'#59d0b0';
   const pts=s.stakedPct.map((p,i)=>X(s.eps[i]).toFixed(1)+' '+Y(p).toFixed(1));
@@ -614,7 +617,7 @@ function onHover(ev){
               ['hold','Never staked',g.s.hold[i],css.getPropertyValue('--s-hold')]];
   for(const [k,,v] of rows){const c=$('ch-'+k);c.setAttribute('cx',x);c.setAttribute('cy',g.Y(v))}
   const tip=$('tip');
-  tip.innerHTML='<div class="t-ep">Epoch '+ep.toLocaleString()+'</div>'+
+  tip.innerHTML='<div class="t-ep">Epoch '+ep.toLocaleString()+' · ~'+epochDate(ep)+'</div>'+
     rows.map(([,lab,v,col])=>'<div class="t-row"><span class="lab"><i class="dot" style="background:'+col+'"></i>'+lab+
       '</span><span class="val">'+fmt(v)+' SOL</span></div>').join('');
   tip.style.display='block';
@@ -691,11 +694,11 @@ function downloadCard(){
     x.fillStyle='#14F195';rr(x,px(c.firstStakeEpoch),by,px(E)-px(c.firstStakeEpoch),12,6);
   }else{x.fillStyle='rgba(91,141,239,.55)';rr(x,px(e0),by,px(E)-px(e0),12,6)}
   x.font='400 18px '+MONO;x.fillStyle='#5E6778';
-  x.textAlign='left';x.fillText('ep. 0',bx,by+42);
-  x.textAlign='right';x.fillText('ep. '+E,bx+bw,by+42);
+  x.textAlign='left';x.fillText(epochDate(e0),bx,by+42);
+  x.textAlign='right';x.fillText(epochDate(E),bx+bw,by+42);
   if(c.firstStakeEpoch!==null){
     x.textAlign='center';x.fillStyle='#14F195';
-    x.fillText('▲ staked ep. '+c.firstStakeEpoch,Math.min(Math.max(px(c.firstStakeEpoch),150),W-200),by+42);
+    x.fillText('▲ staked '+epochDate(c.firstStakeEpoch),Math.min(Math.max(px(c.firstStakeEpoch),150),W-200),by+42);
   }
 
   dash(500);
