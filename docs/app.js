@@ -89,28 +89,30 @@ async function ensureRegistry() {
   REGISTRY = await (await fetch('./lst-mints.json')).json();
   LST_MINTS = Object.fromEntries(REGISTRY.map((l) => [l.mint, { symbol: l.symbol, decimals: l.decimals }]));
   FALLBACK_RATES = Object.fromEntries(REGISTRY.map((l) => [l.symbol, l.fallbackRate]));
+  try { RATE_HISTORY = (await (await fetch('./lst-rate-history.json')).json()).rates || {}; } catch (_) {}
 }
 
 
 
-// Trusted per-epoch exact rate history — recorded once/epoch by scripts/record-rates.js
-// (retroactive reconstruction is infeasible: LST pools do ~33k txs/epoch). In the static
-// build this object is injected at build time (see build-static.py).
-let RATE_HISTORY_EPOCHS = {};
-RATE_HISTORY_EPOCHS = {"1001": {"BNSOL": 1.110411409, "JitoSOL": 1.275866054, "dzSOL": 1.047532274, "JupSOL": 1.18394498, "dSOL": 1.189701343, "mSOL": 1.393258893, "dumSOL": 1.027941914, "sctmSOL": 1.090762544, "dynoSOL": 1.054242938, "PSOL": 1.073631218, "INF": 1.407837461, "vSOL": 1.149109283, "bbSOL": 1.147563524, "JSOL": 1.349217075, "xSHIN": 1.156113159, "aeroSOL": 1.13034338, "dfdvSOL": 1.076215492, "jagSOL": 1.092491264, "bSOL": 1.290721131, "edgeSOL": 1.276092067, "GTSOL": 1.039457812, "definSOL": 1.079724834, "hyloSOL": 1.051868109, "BulkSOL": 1.079103582, "bonkSOL": 1.175801437, "LP-SOLAYER": 1.148149138, "cgntSOL": 1.271551149, "LST": 1.511992871, "bpSOL": 1.094076425, "CDCSOL": 1.090793133, "stSOL": 1.219141857, "strongSOL": 1.177467647, "haSOL": 1.229628667, "laineSOL": 1.310726785, "raiSOL": 1.303787699, "sfSOL": 1.080257374, "iASOL": 1.091946642, "picoSOL": 1.195589749, "mangoSOL": 1.14587339, "lanternSOL": 1.21206967, "proSOL": 1.18546899, "mpSOL": 1.055458109, "hyloSOL+": 1, "phaseSOL": 1.25085898, "rkSOL": 1, "xandSOL": 1.111826451, "hausSOL": 1.161392251, "hubSOL": 1.171934205, "elSOL": 1.272204287, "sentSOL": 1.113919102, "digitalSOL": 1.213536527, "fuseSOL": 1.142834163, "uptSOL": 1.001018017, "compassSOL": 1.178746013, "digitSOL": 1.197428019, "pathSOL": 1.013890625, "honestSOL": 1.080659193, "MonkeSOL": 1.066237959, "chSOL": 1.145263226, "gotmSOL": 1.027368069, "pumpkinSOL": 1.18026202, "vybeSOL": 1.088103949, "hyloSOL ": 1.15756606}};
+// Exact per-LST SOL/token rate history, keyed by symbol → { epoch: rate } (schema v2).
+// Backfilled from DefiLlama daily prices (scripts/backfill-rates.js) and extended forward
+// once/epoch (scripts/record-rates.js). In the static build RATE_HISTORY is populated by a
+// fetch in ensureRegistry (see build-static.py).
+let RATE_HISTORY = {};
+
+function setRateHistory(rates) { RATE_HISTORY = rates || {}; } // used by the static build
 
 // Exact recorded SOL/token rate at/before epoch e (rates are ~monotonic; use the most
-// recent recorded epoch ≤ e). Returns null when e predates recording → caller falls back
+// recent recorded epoch ≤ e). Returns null when e predates the history → caller falls back
 // to benchmark back-compounding.
 function recordedRateAt(sym, e) {
+  const m = RATE_HISTORY[sym];
+  if (!m) return null;
   let best = null, bestEp = -1;
-  for (const k in RATE_HISTORY_EPOCHS) {
-    const ep = +k, r = RATE_HISTORY_EPOCHS[k][sym];
-    if (ep <= e && ep > bestEp && r != null) { best = r; bestEp = ep; }
-  }
+  for (const k in m) { const ep = +k; if (ep <= e && ep > bestEp) { best = m[k]; bestEp = ep; } }
   return best;
 }
-const rateHistorySpan = () => Object.keys(RATE_HISTORY_EPOCHS).length;
+const rateHistorySpan = () => { const s = new Set(); for (const sym in RATE_HISTORY) for (const e in RATE_HISTORY[sym]) s.add(e); return s.size; };
 
 let ratesCache = null;
 
@@ -536,7 +538,10 @@ async function buildReport(wallet) {
   // LST rate at epoch e: prefer the EXACT recorded rate (trusted per-epoch history), else
   // back-compound the current rate at the mSOL benchmark. As the recorder accumulates
   // epochs, more of history uses each LST's own true rate instead of the benchmark.
-  const lstRateAt = (sym, e) => recordedRateAt(sym, e) ?? rateAtEpoch(rates[sym] ?? 1, bench.perEpoch, nowEpoch, e);
+  // current epoch → exact live rate (keeps holdings exact); past epochs → recorded exact
+  // rate if we have it, else benchmark back-compound.
+  const lstRateAt = (sym, e) => (e >= nowEpoch ? (rates[sym] ?? 1)
+    : (recordedRateAt(sym, e) ?? rateAtEpoch(rates[sym] ?? 1, bench.perEpoch, nowEpoch, e)));
   const rhSpan = rateHistorySpan();
   if (rhSpan) notes.push(`LST rates: ${rhSpan} epoch(s) of exact recorded per-LST rates available; earlier epochs use the mSOL benchmark`);
 
@@ -669,7 +674,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: Marinade beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.11.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.12.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -753,12 +758,12 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v11:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v12:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
   const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v11:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v12:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
