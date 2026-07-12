@@ -38,6 +38,14 @@ lst = re.sub(
     "}\n", lst)
 lst = re.sub(r"const LST_MINTS = Object\.fromEntries\(\s*REGISTRY\.map[^;]*;\n", "", lst)
 lst = re.sub(r"const FALLBACK_RATES = Object\.fromEntries\(REGISTRY[^;]*;\n", "", lst)
+# inline the trusted per-epoch rate history at build time (no readFileSync in the browser)
+import json as _json
+try:
+    _rate_hist = _json.load(open("lib/lst-rate-history.json")).get("epochs", {})
+except Exception:
+    _rate_hist = {}
+lst = re.sub(r"try \{ RATE_HISTORY_EPOCHS = JSON\.parse\(readFileSync.*?catch \{[^}]*\}",
+             "RATE_HISTORY_EPOCHS = " + _json.dumps(_rate_hist) + ";", lst)
 assert "readFileSync" not in lst and "ensureRegistry" in lst
 
 bench = strip_module(load("benchmark.js"))
@@ -61,12 +69,12 @@ wrapper = """
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v10:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v11:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
   const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v10:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v11:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
