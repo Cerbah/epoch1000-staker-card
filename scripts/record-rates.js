@@ -12,10 +12,15 @@ import { rpc } from '../lib/rpc.js';
 import { currentRates } from '../lib/lst.js';
 
 const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'lst-rate-history.json');
-const epoch = (await rpc('getEpochInfo')).epoch;
+const epoch = String((await rpc('getEpochInfo')).epoch);
 const rates = await currentRates();
-const hist = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : { schemaVersion: 1, note: 'exact per-LST SOL/token rate recorded once per epoch (trusted data); epochs before the first entry fall back to benchmark back-compounding', epochs: {} };
-hist.epochs[String(epoch)] = Object.fromEntries(
-  Object.entries(rates).filter(([, r]) => r > 0).map(([s, r]) => [s, Math.round(r * 1e9) / 1e9]));
-writeFileSync(FILE, JSON.stringify(hist, null, 0) + '\n');
-console.log(`recorded epoch ${epoch}: ${Object.keys(hist.epochs[String(epoch)]).length} LST rates; history now spans ${Object.keys(hist.epochs).length} epoch(s)`);
+const hist = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : {};
+const out = { schemaVersion: 2, note: 'per-LST exact SOL/token rate by epoch — backfilled from DefiLlama (rate = LST_usd / SOL_usd); extended forward once/epoch by record-rates.js', rates: (hist.schemaVersion === 2 && hist.rates) || {} };
+let n = 0;
+for (const [sym, r] of Object.entries(rates)) {
+  if (!(r > 0)) continue;
+  (out.rates[sym] = out.rates[sym] || {})[epoch] = Math.round(r * 1e6) / 1e6;
+  n++;
+}
+writeFileSync(FILE, JSON.stringify(out) + '\n');
+console.log(`recorded epoch ${epoch}: ${n} LST rates; history covers ${Object.keys(out.rates).length} symbols`);
