@@ -1,0 +1,47 @@
+name: Record LST rates (trusted per-epoch data)
+
+# Records the exact current per-LST exchange rate once per epoch into
+# lib/lst-rate-history.json and refreshes the static build, so the staker card can value
+# each LST's history at its OWN rate instead of the mSOL benchmark. Retroactive rate
+# reconstruction is infeasible (LST pools do ~33k txs/epoch), so we accumulate going
+# forward. Runs every 8h (epochs are ~2.3 days; the upsert is idempotent per epoch).
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-rates
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Record current epoch's rates
+        run: node scripts/record-rates.js
+      - name: Rebuild static docs (refresh inlined rate history)
+        run: |
+          export HELIUS_API_KEY="$(grep '^HELIUS_API_KEY=' .env | cut -d= -f2)"
+          python3 scripts/build-static.py
+      - name: Commit if the history advanced
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- lib/lst-rate-history.json docs; then
+            echo "No new epoch recorded — nothing to commit."
+          else
+            git add lib/lst-rate-history.json docs
+            git commit -m "chore: record LST rates for the current epoch [skip ci]"
+            git push
+          fi
