@@ -43,7 +43,7 @@ assert "readFileSync" not in lst and "ensureRegistry" in lst
 bench = strip_module(load("benchmark.js"))
 mar = strip_module(load("marinade.js"))
 pipe = strip_module(load("pipeline.js"))
-for var in ["MAX_SIG_PAGES", "MAX_ENHANCED_TX", "REWARD_SAMPLE_CALLS", "REWARD_CONCURRENCY"]:
+for var in ["MAX_SIG_PAGES", "MAX_ENHANCED_TX", "MAX_LST_SIG_PAGES", "REWARD_SAMPLE_CALLS", "REWARD_CONCURRENCY"]:
     pipe = re.sub(r"Number\(process\.env\.%s \?\? (\d+)\)" % var, r"\1", pipe)
 # marinade.js already declares these at what becomes shared scope
 pipe = pipe.replace("const SLOTS_PER_EPOCH = 432_000;\n", "").replace("const LAMPORTS = 1e9;\n", "")
@@ -61,12 +61,12 @@ wrapper = """
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v08:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v09:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
   const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v08:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v09:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');

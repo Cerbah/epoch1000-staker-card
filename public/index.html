@@ -443,7 +443,7 @@ function render(data){
   const badge=$('badge');
   const custodial=data.meta&&data.meta.custodial;
   badge.className='badge '+(data.simulated?'sim':custodial?'sim':'live');
-  badge.textContent=data.simulated?'SIMULATED':custodial?'CUSTODIAL WALLET — HISTORY NOT ATTRIBUTABLE':(data.captured?'LIVE ON-CHAIN · CAPTURED '+data.captured:'LIVE ON-CHAIN DATA');
+  badge.textContent=data.simulated?'SIMULATED':custodial?'CUSTODIAL PATTERN — INTERPRET WITH CARE':(data.captured?'LIVE ON-CHAIN · CAPTURED '+data.captured:'LIVE ON-CHAIN DATA');
 
   applyCard(true);
   $('c-grade').textContent=gm;
