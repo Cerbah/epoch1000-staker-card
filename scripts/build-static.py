@@ -64,12 +64,12 @@ wrapper = """
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v13:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v14:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
   const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v13:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v14:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');

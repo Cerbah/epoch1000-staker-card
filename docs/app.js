@@ -390,7 +390,10 @@ async function buildReport(wallet) {
       }
       // discover stake accounts the wallet ever funded/drained — incl. ones since closed,
       // which getProgramAccounts can no longer see (getInflationReward still can, below)
-      if (STAKE_TX.test(t.type || '') || (t.instructions ?? []).some((i) => i.programId === STAKE_PROGRAM)) {
+      // only the WALLET's OWN stake txs (it paid the fee) — otherwise a stake account
+      // arriving via someone else's withdrawal would wrongly get its lifetime rewards
+      // attributed here. getInflationReward later confirms each candidate is a real stake acct.
+      if (t.feePayer === wallet && (STAKE_TX.test(t.type || '') || (t.instructions ?? []).some((i) => i.programId === STAKE_PROGRAM))) {
         for (const n of t.nativeTransfers ?? []) {
           const cp = n.fromUserAccount === wallet ? n.toUserAccount : (n.toUserAccount === wallet ? n.fromUserAccount : null);
           if (cp && cp !== wallet && (n.amount ?? 0) / LAMPORTS > 0.5 && !acctIndex.has(cp)) {
@@ -701,7 +704,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: Marinade beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.13.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.14.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -785,12 +788,12 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v13:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v14:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
   const r = await buildReport(wallet);
-  try { localStorage.setItem('e1k:v13:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v14:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
