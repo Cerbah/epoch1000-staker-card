@@ -564,7 +564,7 @@ async function buildReport(wallet) {
   const lstRateAt = (sym, e) => (e >= nowEpoch ? (rates[sym] ?? 1)
     : (recordedRateAt(sym, e) ?? rateAtEpoch(rates[sym] ?? 1, bench.perEpoch, nowEpoch, e)));
   const rhSpan = rateHistorySpan();
-  if (rhSpan) notes.push(`LST rates: ${rhSpan} epoch(s) of exact recorded per-LST rates available; earlier epochs use the mSOL benchmark`);
+  if (rhSpan) notes.push('LST holdings are valued with exact per-epoch exchange rates from recorded on-chain history (mSOL back to its Aug-2021 launch; other LSTs from their first tracked price). Only epochs before a token was tracked fall back to an estimate — its current rate back-compounded at mSOL\'s yield.');
 
   // LSTs count as staking: first LST acquisition sets the first-stake epoch too
   const firstLstEpoch = grid.find((e) => Object.values(lstAt.get(e) ?? {}).some((b) => b > 1e-6)) ?? null;
@@ -635,12 +635,20 @@ async function buildReport(wallet) {
   const EPOCH_SEC = 197_000; // ~2.28 days
   const nowSec = Date.now() / 1000;
   const epochUnix = (e) => nowSec - (nowEpoch - e) * EPOCH_SEC;
+  // Benchmark step growth = how much 1 mSOL ACTUALLY grew in SOL terms over [e0,e1], read
+  // straight from mSOL's own recorded exchange-rate history (exact, launch→now). This is the
+  // true "held 100% mSOL" counterfactual. Only if a boundary rate is missing (an epoch before
+  // mSOL was tracked) do we fall back to the rolling-APY series / its flat clamp.
+  const benchStep = (e0, e1) => {
+    const r0 = recordedRateAt('mSOL', e0), r1 = recordedRateAt('mSOL', e1);
+    if (r0 > 0 && r1 > 0) return Math.max(0, r1 / r0 - 1);
+    return Math.pow(1 + bench.perEpochAt(epochUnix(e0)), e1 - e0) - 1;
+  };
   const full = [], mnde = [];
   let fullPot = 0, mndePot = 0;
   for (let i = 0; i < grid.length; i++) {
     if (i > 0) {
-      // time-varying benchmark: mSOL APY as it actually was at that point in history
-      const g = Math.pow(1 + bench.perEpochAt(epochUnix(grid[i - 1])), grid[i] - grid[i - 1]) - 1;
+      const g = benchStep(grid[i - 1], grid[i]);
       fullPot += (hold[i - 1] + fullPot) * g;
       // mnde pot accrues on the whole staked exposure — native stake + LST SOL-value —
       // swapping the entire actual reward stream (native rewards + LST appreciation)
@@ -721,7 +729,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.19.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.20.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -835,7 +843,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v19:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v20:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -846,7 +854,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v19:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v20:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
