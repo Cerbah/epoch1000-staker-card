@@ -354,28 +354,26 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const EXAMPLES=[];
 const EXAMPLE_SETS=[
   {group:'OG holders (3+ years on chain)',items:[
-    {label:'whale · staking since ep. 300, kept adding',addr:'26H113i8gqHyHPAYYdekSu22sBmVtcJEDtyEWvFdvyZb',sim:false},
-    {label:'all-in staker since ep. 189 · zero idle',addr:'4szQKXwPAnfPhEDWmmkLwMu5S6tWV5pFmeqnjdDy3R1d',sim:false},
-    {label:'ladder staker · 11 accounts since ep. 227',addr:'FwjFzHHRZuVsnuMsU4DvBEu1msZ7aQGV8eWRsqYj13dP',sim:false},
-    {label:'small retail · set-and-forget since ep. 300',addr:'GWfW1yM4E2NJi1WNievSDVe4bQFJ6YSteX6vAFrozABf',sim:false},
-    {label:'partial staker · big idle stack',addr:'HNBCurE7Z9npYjtWuvehBo7E1zN13swxjEVsmye1XFDe',sim:false},
-    {label:'mostly idle · 5× more SOL than stake',addr:'29kW4pNvnEBFSVoLAGEthip9rfLKpNyAE3BAHV6eNJ8Y',sim:false},
-    {label:'never staked · holding since 2022',addr:'BP1epAhFXxXEqo47GkFTdf9UuRUU2spKnuRxhWrAFED2',sim:false},
-    {label:'never staked · holding since 2022 (#2)',addr:'Cu4M3yd2LfMoGhmYxKszhVH18SPgt6TQvqnE4AWjNKwd',sim:false},
+    {label:'whale · ~30k SOL, 6 stake accounts since 2022',addr:'26H113i8gqHyHPAYYdekSu22sBmVtcJEDtyEWvFdvyZb',sim:false},
+    {label:'all-in staker since 2021 · ~zero idle',addr:'4szQKXwPAnfPhEDWmmkLwMu5S6tWV5pFmeqnjdDy3R1d',sim:false},
+    {label:'ladder staker · 11 accounts since 2021',addr:'FwjFzHHRZuVsnuMsU4DvBEu1msZ7aQGV8eWRsqYj13dP',sim:false},
+    {label:'small retail · set-and-forget since 2022',addr:'GWfW1yM4E2NJi1WNievSDVe4bQFJ6YSteX6vAFrozABf',sim:false},
+    {label:'mostly idle · only ~16% staked (missed rewards)',addr:'29kW4pNvnEBFSVoLAGEthip9rfLKpNyAE3BAHV6eNJ8Y',sim:false},
+    {label:'never staked · ~150 SOL sitting idle',addr:'BP1epAhFXxXEqo47GkFTdf9UuRUU2spKnuRxhWrAFED2',sim:false},
   ]},
   {group:'Mid-term stakers (1–2 years)',items:[
-    {label:'full staker since ep. 550 · set-and-forget',addr:'GaxoxaCxjxW27X745n46tVCg4PCQMg8yNMLbFcJoBDKr',sim:false},
-    {label:'full staker · 4 accounts since ep. 550',addr:'2N4937LH4nKVTymZ7sEHxBLu6KJKjTEBJZusG7Ke7DBp',sim:false},
-    {label:'partial staker · 10k staked, 2.4k idle',addr:'2cj2HXqGA1uMTEc3TwUW56tfV9mPZg6rKQ9Ane78xp8e',sim:false},
-    {label:'late converter · held 2 yrs, staked at ep. 700',addr:'J9pbneLHNgq41d44U3t7Y1gGF346uye6ZAxPFVFqCfrF',sim:false},
+    {label:'full staker since 2024 · set-and-forget',addr:'GaxoxaCxjxW27X745n46tVCg4PCQMg8yNMLbFcJoBDKr',sim:false},
+    {label:'full staker · 4 accounts since 2024',addr:'2N4937LH4nKVTymZ7sEHxBLu6KJKjTEBJZusG7Ke7DBp',sim:false},
+    {label:'partial staker · ~9.9k staked, ~2.4k idle',addr:'2cj2HXqGA1uMTEc3TwUW56tfV9mPZg6rKQ9Ane78xp8e',sim:false},
   ]},
-  {group:'LST holders',items:[
-    {label:'mSOL whale · 22k mSOL',addr:'Fr8JaD1Q8aFCfcBsfixcrRTzygWshmbehAjgQKEFs48P',sim:false},
-    {label:'jitoSOL whale · 62k jitoSOL',addr:'F6ggfAY9GqYFBhmvBC8CwaaJBjgYY9WBodNKoxypHcGb',sim:false},
+  {group:'LST & unwound positions',items:[
+    {label:'unwound staker · 3 closed stake accounts, still counted',addr:'BVtniFkSNJ2oFSc6ks24qaWiYTbCrStvsLXKWqHsQ38S',sim:false},
+    {label:'mSOL whale · 22k mSOL (~30.7k SOL)',addr:'Fr8JaD1Q8aFCfcBsfixcrRTzygWshmbehAjgQKEFs48P',sim:false},
+    {label:'jitoSOL whale · 62k jitoSOL (~79k SOL)',addr:'F6ggfAY9GqYFBhmvBC8CwaaJBjgYY9WBodNKoxypHcGb',sim:false},
   ]},
   {group:'Recent wallets (simulated)',items:[
-    {label:'late fomo · staked at ep. 965',addr:'S1mLateFomoStakerXXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:880,stakeStart:965,frac:.85,apy:.064,holdings:60}},
-    {label:'day-one staker · joined ep. 940',addr:'S1mFreshFu11StakerXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:940,stakeStart:941,frac:.95,apy:.067,holdings:80}},
+    {label:'late fomo · held since Nov 2025, staked Apr 2026',addr:'S1mLateFomoStakerXXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:880,stakeStart:965,frac:.85,apy:.064,holdings:60}},
+    {label:'day-one staker · joined & staked ~Mar 2026',addr:'S1mFreshFu11StakerXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:940,stakeStart:941,frac:.95,apy:.067,holdings:80}},
     {label:'fresh wallet · not staking yet',addr:'S1mFreshUnstakedXXXXXXXXXXXXXXXXXXXXXXXXXXXX',sim:true,params:{holdStart:940,frac:0,holdings:25}},
   ]},
 ];

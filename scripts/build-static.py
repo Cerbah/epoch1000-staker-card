@@ -46,9 +46,11 @@ assert "readFileSync" not in lst and "ensureRegistry" in lst
 bench = strip_module(load("benchmark.js"))
 mar = strip_module(load("marinade.js"))
 pipe = strip_module(load("pipeline.js"))
-# Browser build runs in the visitor's tab on a shared public key — use conservative caps
-# (not the paid-plan server defaults) so a busy wallet can't hang phones or 429-storm.
-BROWSER_CAPS = {"MAX_SIG_PAGES": 5, "MAX_ENHANCED_TX": 1500, "MAX_LST_SIG_PAGES": 22, "REWARD_SAMPLE_CALLS": 22, "REWARD_CONCURRENCY": 2}
+# Browser build runs in the visitor's tab on a shared public key. Caps are higher than the
+# bare minimum (the 90s timeout + truncation-proof reconstruction are the safety nets) but
+# still below the paid-plan server defaults. Signature LISTING (MAX_SIG_PAGES) is cheap so
+# it's generous; the ENHANCED replay (MAX_ENHANCED_TX) is the costly part so it's moderate.
+BROWSER_CAPS = {"MAX_SIG_PAGES": 15, "MAX_ENHANCED_TX": 5000, "MAX_LST_SIG_PAGES": 40, "REWARD_SAMPLE_CALLS": 30, "REWARD_CONCURRENCY": 3}
 for var, cap in BROWSER_CAPS.items():
     pipe = re.sub(r"Number\(process\.env\.%s \?\? \d+\)" % var, str(cap), pipe)
 # marinade.js already declares these at what becomes shared scope
@@ -67,7 +69,7 @@ wrapper = """
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v18:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v19:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -78,7 +80,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v18:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v19:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');

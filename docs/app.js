@@ -300,11 +300,11 @@ const num = (v) => (v === undefined || v === null ? 0 : Number(v) / LAMPORTS);
 const STAKE_PROGRAM = 'Stake11111111111111111111111111111111111111';
 // Depth budgets — sized to replay MOST wallets to inception on a paid Helius plan
 // ("right first time"); only true monsters get truncated, loudly.
-const MAX_SIG_PAGES = 5;          // ×1000 sigs history cap
-const MAX_ENHANCED_TX = 1500;   // parsed-tx replay budget
-const MAX_LST_SIG_PAGES = 22;  // ×1000 per-ATA sig cap (listing only, cheap)
-const REWARD_SAMPLE_CALLS = 22;
-const REWARD_CONCURRENCY = 2; // parallel getInflationReward calls
+const MAX_SIG_PAGES = 15;          // ×1000 sigs history cap
+const MAX_ENHANCED_TX = 5000;   // parsed-tx replay budget
+const MAX_LST_SIG_PAGES = 40;  // ×1000 per-ATA sig cap (listing only, cheap)
+const REWARD_SAMPLE_CALLS = 30;
+const REWARD_CONCURRENCY = 3; // parallel getInflationReward calls
 
 async function buildReport(wallet) {
   const notes = [];
@@ -721,7 +721,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.18.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.19.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -835,7 +835,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v18:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v19:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -846,7 +846,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v18:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v19:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
