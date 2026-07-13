@@ -175,6 +175,22 @@
   .meta-notes{margin-top:16px;font-size:12.5px;color:var(--ink3);font-family:ui-monospace,Menlo,monospace}
   .meta-notes li{margin:2px 0}
 
+  #debug-box summary{color:var(--mnde)}
+  .debug{margin-top:12px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink2)}
+  .dbg-sec{margin:16px 0 6px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
+    border-bottom:1px solid var(--line);padding-bottom:4px}
+  .dbg-sec:first-child{margin-top:0}
+  .dbg-row{display:flex;justify-content:space-between;gap:16px;align-items:baseline;padding:3px 0}
+  .dbg-k{color:var(--ink3)}
+  .dbg-v{color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+  .dbg-v.warn{color:#f0c674}
+  .dbg-src,.dbg-lim{padding:3px 0;line-height:1.5;color:var(--ink2)}
+  .dbg-lim{color:#f0c674}
+  .dbg-raw{margin-top:16px}
+  .dbg-raw summary{cursor:pointer;color:var(--ink3);font-size:12px}
+  .dbg-raw pre{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:12px;margin-top:8px;font-size:11.5px;color:var(--ink2)}
+
   .epoch-live{margin:72px auto 0;padding-bottom:40px}
   .ep-box{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:20px 24px}
   .ep-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -318,6 +334,10 @@
 
     <details class="tbl" id="how-box"><summary>How we computed this</summary>
       <ul class="meta-notes" id="meta-notes"></ul>
+    </details>
+
+    <details class="tbl" id="debug-box"><summary>🔧 Debug — data provenance &amp; limitations (for developers)</summary>
+      <div class="debug" id="debug-body"></div>
     </details>
   </div>
 </div>
@@ -500,11 +520,71 @@ function render(data){
   $('how-box').style.display=ns.length?'':'none';
   for(const n of ns){const li=document.createElement('li');li.textContent='· '+n;notes.appendChild(li)} // textContent: notes embed upstream error strings
 
+  renderDebug(data);
+
   drawChart(s,c.firstStakeEpoch,E,$('mnde-toggle').checked);
   drawStakedChart(s,c.firstStakeEpoch,E);
   fillTable(s);
   $('results').style.display='block';
   $('results').scrollIntoView({behavior:reduced?'auto':'smooth'});
+}
+
+/* ---------- debug panel: developer-facing data provenance ---------- */
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function renderDebug(data){
+  const box=$('debug-box'), body=$('debug-body');
+  const d=data.meta&&data.meta.debug;
+  if(!d){ // simulated or legacy report — no on-chain provenance to show
+    box.style.display=data.simulated?'':'none';
+    if(data.simulated)body.innerHTML='<div class="dbg-lim">Simulated profile — no on-chain data was fetched. All numbers are illustrative.</div>';
+    return;
+  }
+  box.style.display='';
+  const out=[];
+  const sec=t=>out.push('<div class="dbg-sec">'+esc(t)+'</div>');
+  const kv=(k,v,warn)=>out.push('<div class="dbg-row"><span class="dbg-k">'+esc(k)+'</span><span class="dbg-v'+(warn?' warn':'')+'">'+esc(v)+'</span></div>');
+
+  sec('LSTs found for this wallet');
+  kv('distinct LSTs ever held',d.lst.distinctLstsFound+(d.lst.everHeldSymbols.length?' — '+d.lst.everHeldSymbols.join(', '):' — none'));
+  kv('currently held (balance > 0)',d.lst.currentlyHeld);
+  kv('token accounts scanned',d.lst.totalTokenAccountsScanned+' (current '+d.lst.currentTokenAccounts+' + since-closed '+d.lst.sinceClosedTokenAccounts+')');
+  if(d.lst.truncatedAccounts.length)kv('⚠ signature listing truncated for',d.lst.truncatedAccounts.join(', '),true);
+
+  sec('Stake accounts scanned (open + closed over time)');
+  kv('total scanned',d.stake.totalScanned);
+  kv('current on-chain (open now)',d.stake.currentOnChain+' · '+d.stake.currentlyDelegated+' delegated');
+  kv('since-closed discovered (from tx replay)',d.stake.sinceClosedDiscovered+(d.stake.sinceClosedSampled<d.stake.sinceClosedDiscovered?' (sampled '+d.stake.sinceClosedSampled+' — 60 cap)':''),d.stake.sinceClosedSampled<d.stake.sinceClosedDiscovered);
+  kv('acquired via authority change',d.stake.acquiredViaAuthorityChange);
+  if(d.stake.custodial)kv('custodial / flow-through pattern','yes',true);
+
+  sec('Transaction replay');
+  kv('wallet signatures listed',d.replay.walletSignatures.toLocaleString()+(d.replay.signatureHistoryTruncated?' (truncated)':''),d.replay.signatureHistoryTruncated);
+  kv('transactions replayed (Enhanced API)',d.replay.replayedTxs.toLocaleString()+' of '+d.replay.okSignatures.toLocaleString()+' · '+d.replay.enhancedApiCalls+' calls');
+  kv('replay complete',String(d.replay.replayComplete),!d.replay.replayComplete);
+
+  sec('Rewards');
+  kv('source',d.rewards.source+(d.rewards.inflationOnly?' — INFLATION ONLY (no MEV / priority fees)':' — full lineage incl. MEV + PSR'),d.rewards.inflationOnly);
+  kv('Marinade crawl status',d.rewards.marinadeCrawlStatus);
+  kv(d.rewards.inflationOnly?'epochs sampled (getInflationReward)':'reward epochs (ledger)',d.rewards.inflationOnly?d.rewards.sampledEpochs:d.rewards.ledgerRewardEpochs);
+
+  sec('LST rates');
+  kv('recorded rate-history datapoints (epochs)',d.rates.recordedRateHistoryDatapoints.toLocaleString());
+  kv('benchmark fallback in use',String(d.rates.usesBenchmarkFallback),d.rates.usesBenchmarkFallback);
+
+  sec('Depth caps (this environment)');
+  kv('sig-listing pages / enhanced-tx / LST pages / reward samples',d.caps.MAX_SIG_PAGES+' / '+d.caps.MAX_ENHANCED_TX+' / '+d.caps.MAX_LST_SIG_PAGES+' / '+d.caps.REWARD_SAMPLE_CALLS);
+  kv('getInflationReward address limit',d.caps.getInflationRewardAddressLimit+(d.caps.stakeAddressLimitExceeded?' — EXCEEDED':''),d.caps.stakeAddressLimitExceeded);
+  const hits=[d.caps.walletSigListingCapHit&&'sig-listing',d.caps.enhancedReplayCapHit&&'enhanced-replay',d.caps.lstListingCapHit&&'LST-listing'].filter(Boolean);
+  kv('caps hit',hits.length?hits.join(', '):'none',hits.length>0);
+
+  sec('Data sources');
+  d.dataSources.forEach(x=>out.push('<div class="dbg-src">· '+esc(x)+'</div>'));
+
+  sec('Known limitations for this wallet');
+  d.limitations.forEach(x=>out.push('<div class="dbg-lim">⚠ '+esc(x)+'</div>'));
+
+  out.push('<details class="dbg-raw"><summary>raw debug JSON</summary><pre>'+esc(JSON.stringify(d,null,2))+'</pre></details>');
+  body.innerHTML=out.join('');
 }
 
 function countUp(el,target){
