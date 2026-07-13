@@ -718,6 +718,79 @@ async function buildReport(wallet) {
   const effApy = yearsSpan > 0.01 && gStaked > 1 ? Math.pow(gStaked, 1 / yearsSpan) - 1 : 0;
   const totalApy = yearsHold > 0.01 && gTotal > 1 ? Math.min(effApy, Math.pow(gTotal, 1 / yearsHold) - 1) : 0;
 
+  // ── debug provenance: where every number comes from + this wallet's limitations ──
+  // Surfaced verbatim in the front-end "Debug" panel so a developer can audit the run.
+  const everHeldSymbols = [...new Set([...Object.keys(lstNow).filter((s) => lstNow[s] > 0), ...histLstSeen.values()])];
+  const stakeAddrCount = activeStakes.length + histStake.length;
+  const limitations = [];
+  if (truncated) limitations.push(`Wallet signature history hit the ${MAX_SIG_PAGES}×1000 listing cap — activity older than the newest ${sigs.length} signatures is approximated, not replayed.`);
+  if (okSigs.length > replaySigs.length) limitations.push(`Only the newest ${replaySigs.length} of ${okSigs.length} transactions were replayed (MAX_ENHANCED_TX) — older stake/LST discovery may be incomplete.`);
+  if (!replayComplete) limitations.push('Transaction replay is incomplete → native SOL history is read from absolute on-chain balances at each epoch boundary (phantom-proof but coarser than a full delta walk).');
+  if (!ledger) limitations.push(`Rewards are SAMPLED via getInflationReward (~${rewardSamples.length} epochs) and cover INFLATION ONLY — MEV/Jito tips and priority/block fees are NOT included. The exact Marinade /report ledger was not used (crawl status: ${marinade?.status ?? 'Unknown'}).`);
+  else limitations.push('Rewards come from the Marinade staking-rewards /report ledger — exact per-slot lineage incl. inflation + MEV + voting + PSR.');
+  if (lstAtaData.some((d) => d.truncated)) limitations.push(`LST token-account signatures were truncated for: ${lstAtaData.filter((d) => d.truncated).map((d) => d.symbol).join(', ')} — epochs before the crawl window show 0 for those.`);
+  if (stakeSeen.size > histStake.length) limitations.push(`${stakeSeen.size} since-closed stake accounts were discovered but only ${histStake.length} were sampled (60-account cap).`);
+  if (stakeAddrCount > 100) limitations.push(`⚠ ${stakeAddrCount} stake accounts exceed the 100-address getInflationReward per-call limit — accounts beyond 100 are dropped from per-epoch reward sampling (unhandled; would need chunking).`);
+  if (!rhSpan) limitations.push('No recorded LST rate history loaded — LST values fall back to the current rate back-compounded at the mSOL benchmark.');
+  limitations.push('Counterfactual lines ("fully staked", "with Marinade") use the mSOL benchmark, not each validator\'s realized yield.');
+  const debug = {
+    dataSources: [
+      'Helius JSON-RPC — getEpochInfo, getProgramAccounts (current stake accts by authority), getBalance, getTokenAccountsByOwner, getSignaturesForAddress, getTransaction (absolute balances), getInflationReward (per stake acct × epoch, inflation only, ≤100 addrs/call)',
+      'Helius Enhanced Transactions API — parsed-tx replay for SOL deltas + stake/LST account discovery (100 tx/request)',
+      `Marinade staking-rewards API — /v1/status + /v1/report (exact inflation+MEV+voting+PSR lineage when crawl Ready; this run: ${marinade?.status ?? 'Unknown'})`,
+      'Marinade APY API — mSOL rolling-apy benchmark for counterfactuals',
+      'Sanctum + static registry — current LST→SOL exchange rates',
+      'Recorded LST rate history (lst-rate-history.json) — exact per-epoch LST rates (DefiLlama-backfilled); benchmark back-compound only before a token was tracked',
+    ],
+    lst: {
+      distinctLstsFound: everHeldSymbols.length,
+      everHeldSymbols,
+      currentlyHeld: Object.keys(lstNow).filter((s) => lstNow[s] > 0).length,
+      heldNow: lstNow,
+      currentTokenAccounts: lstAtas.length,
+      sinceClosedTokenAccounts: extraAtas.length,
+      totalTokenAccountsScanned: lstAtaData.length,
+      truncatedAccounts: lstAtaData.filter((d) => d.truncated).map((d) => d.symbol),
+    },
+    stake: {
+      totalScanned: stakeAddrCount,
+      currentOnChain: stakes.length,
+      currentlyDelegated: activeStakes.length,
+      sinceClosedDiscovered: stakeSeen.size,
+      sinceClosedSampled: histStake.length,
+      acquiredViaAuthorityChange: acquired,
+      custodial,
+    },
+    replay: {
+      walletSignatures: sigs.length,
+      okSignatures: okSigs.length,
+      replayedTxs: replaySigs.length,
+      enhancedApiCalls: Math.ceil(replaySigs.length / 100),
+      replayComplete,
+      signatureHistoryTruncated: truncated,
+    },
+    rewards: {
+      source: ledger ? 'marinade-report' : 'helius-sampled',
+      inflationOnly: !ledger,
+      marinadeCrawlStatus: marinade?.status ?? 'Unknown',
+      ledgerRewardEpochs: ledger ? ledger.entries.length : null,
+      sampledEpochs: ledger ? null : rewardSamples.length,
+    },
+    rates: {
+      recordedRateHistoryDatapoints: rhSpan || 0,
+      usesBenchmarkFallback: !rhSpan,
+    },
+    caps: {
+      MAX_SIG_PAGES, MAX_ENHANCED_TX, MAX_LST_SIG_PAGES, REWARD_SAMPLE_CALLS,
+      getInflationRewardAddressLimit: 100,
+      walletSigListingCapHit: truncated,
+      enhancedReplayCapHit: okSigs.length > replaySigs.length,
+      lstListingCapHit: lstAtaData.some((d) => d.truncated),
+      stakeAddressLimitExceeded: stakeAddrCount > 100,
+    },
+    limitations,
+  };
+
   return {
     wallet,
     generatedAt: new Date().toISOString(),
@@ -744,7 +817,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.21.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.22.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -756,6 +829,7 @@ async function buildReport(wallet) {
       sigCount: sigs.length,
       truncated,
       notes,
+      debug,
     },
   };
 }
@@ -858,7 +932,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v21:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v22:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -869,7 +943,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v21:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v22:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
