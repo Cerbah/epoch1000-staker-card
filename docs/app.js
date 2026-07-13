@@ -495,6 +495,15 @@ async function buildReport(wallet) {
     const step = Math.max(1, Math.ceil((nowEpoch - from) / REWARD_SAMPLE_CALLS));
     const addrs = [...activeStakes.map((s) => s.address), ...histStake];
     const attrExt = [...attrFrom, ...histStake.map(() => 1)]; // historical accts: their whole active life is the wallet's
+    // getInflationReward returns null (NOT {amount:0}) for a zero-reward epoch — verified
+    // on-chain for stake delegated to a 100%-commission validator (delegator gets nothing).
+    // Skipping null would drop that principal from "staked exposure", making a 100%-commission
+    // staker look unstaked. So for a KNOWN active stake account we still count its balance
+    // (a zero-reward stake's principal is ~flat, so its current lamports is a good historical
+    // estimate) with reward 0. Closed accounts have no known balance → can't recover (noted).
+    const fallbackLamports = [...activeStakes.map((s) => s.lamports), ...histStake.map(() => 0)];
+    const expFrom = [...activeStakes.map((s, i) => Math.max(attrFrom[i] ?? 1, s.activationEpoch ?? 1)), ...histStake.map(() => 1)];
+    let zeroRewardStaked = false;
     const epochs = [];
     for (let e = from; e < nowEpoch; e += step) epochs.push(e);
     await pool(epochs, REWARD_CONCURRENCY, async (e) => {
@@ -502,15 +511,21 @@ async function buildReport(wallet) {
         const res = await rpc('getInflationReward', [addrs, { epoch: e }]);
         let rew = 0, post = 0;
         for (let i = 0; i < res.length; i++) {
-          if (!res[i] || e < attrExt[i]) continue; // outside this wallet's attribution window
-          rew += res[i].amount;
-          post += res[i].postBalance; // the account's REAL balance at that epoch
+          if (e < attrExt[i]) continue; // outside this wallet's attribution window
+          if (res[i]) {
+            rew += res[i].amount;
+            post += res[i].postBalance; // the account's REAL balance at that epoch
+          } else if (fallbackLamports[i] > 0 && e >= expFrom[i]) {
+            post += fallbackLamports[i]; // zero-reward epoch (e.g. 100%-commission validator): still staked
+            zeroRewardStaked = true;
+          }
         }
         rewardSamples.push({ epoch: e, span: Math.min(step, nowEpoch - e), perEpochSol: rew / LAMPORTS, postSol: post / LAMPORTS });
       } catch (err) {
         notes.push(`rewards sample @${e} failed: ${err.message}`);
       }
     });
+    if (zeroRewardStaked) notes.push('some epochs show staked principal earning zero rewards — consistent with stake delegated to a 100%-commission validator (counted as staked, credited no rewards)');
     rewardSamples.sort((a, b) => a.epoch - b.epoch);
     rewardSamples.push({ epoch: nowEpoch, span: 0, perEpochSol: 0, postSol: stakeNowSol }); // anchor at today
     if (histStake.length) notes.push(`included ${histStake.length} since-closed stake account(s) discovered from history — native staking that was later withdrawn is counted`);
@@ -729,7 +744,7 @@ async function buildReport(wallet) {
       mndeDeltaSol: r4(mndePot - earned),          // >0: mSOL benchmark beats your actual reward stream
     },
     meta: {
-      version: 'poc-0.20.0', // bumped on any math/semantics change so number shifts are attributable
+      version: 'poc-0.21.0', // bumped on any math/semantics change so number shifts are attributable
       benchmark: bench,
       marinadeCrawl: marinade?.status ?? 'Unknown',
       rewardsSource: ledger ? 'marinade-report' : 'helius-sampled',
@@ -843,7 +858,7 @@ const rnd = (a) => a.map(r4);
 const CACHE_TTL_MS = 6 * 3600 * 1000;
 window.buildReportLive = async function (wallet) {
   try {
-    const hit = JSON.parse(localStorage.getItem('e1k:v20:' + wallet) || 'null');
+    const hit = JSON.parse(localStorage.getItem('e1k:v21:' + wallet) || 'null');
     if (hit && Date.now() - Date.parse(hit.generatedAt) < CACHE_TTL_MS) { hit.meta.cache = 'hit'; return hit; }
   } catch (_) {}
   await ensureRegistry();
@@ -854,7 +869,7 @@ window.buildReportLive = async function (wallet) {
     buildReport(wallet),
     new Promise((_, rej) => setTimeout(() => rej(new Error('This wallet is very active and timed out in the browser — try again shortly, or it may be too large to replay client-side')), TIMEOUT_MS)),
   ]);
-  try { localStorage.setItem('e1k:v20:' + wallet, JSON.stringify(r)); } catch (_) {}
+  try { localStorage.setItem('e1k:v21:' + wallet, JSON.stringify(r)); } catch (_) {}
   return r;
 };
 window.epochInfoLive = () => rpc('getEpochInfo');
